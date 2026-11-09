@@ -1,6 +1,7 @@
 export type ThemeId = string
 export type PatternId = string
 export type WallpaperKind = 'none' | 'pattern' | 'image'
+export type InterfaceDensity = 'compact' | 'comfortable' | 'spacious'
 
 export interface ThemeTokenSet {
   primary: string
@@ -26,6 +27,9 @@ export interface ChatifyThemePreferences {
   themeId: ThemeId
   accentColor: string
   fontFamily: string
+  fontSize?: number
+  uiScale?: number
+  density?: InterfaceDensity
   wallpaper: WallpaperPreferences
 }
 

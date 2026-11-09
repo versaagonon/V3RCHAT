@@ -59,6 +59,27 @@ final class ThemePreferencesValidator
             $validated['fontFamily'] = $fontFamily;
         }
 
+        if (array_key_exists('fontSize', $preferences)) {
+            $fontSize = (int) $preferences['fontSize'];
+            if ($fontSize >= 10 && $fontSize <= 24) {
+                $validated['fontSize'] = $fontSize;
+            }
+        }
+
+        if (array_key_exists('uiScale', $preferences)) {
+            $uiScale = (int) $preferences['uiScale'];
+            if ($uiScale >= 75 && $uiScale <= 150) {
+                $validated['uiScale'] = $uiScale;
+            }
+        }
+
+        if (array_key_exists('density', $preferences)) {
+            $density = (string) $preferences['density'];
+            if (in_array($density, ['compact', 'comfortable', 'spacious'], true)) {
+                $validated['density'] = $density;
+            }
+        }
+
         if (array_key_exists('wallpaper', $preferences) && is_array($preferences['wallpaper'])) {
             if (! ChatifyAppearanceConfig::isEnabled('chat_background')) {
                 throw new \InvalidArgumentException(__('chatify::chatify.errors.wallpaper_selection_disabled'));

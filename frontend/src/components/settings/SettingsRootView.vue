@@ -22,7 +22,11 @@ const { preferences, themesEnabled, fontsEnabled, wallpaperEnabled, showOnlineSt
 const { blockedUsers } = storeToRefs(contactsStore)
 
 const themeLabel = computed(() => getThemeById(preferences.value.themeId).name)
-const fontLabel = computed(() => getFontById(preferences.value.fontFamily).label)
+const layoutFontsLabel = computed(() => {
+  const font = getFontById(preferences.value.fontFamily).label
+  const scale = preferences.value.uiScale ?? 100
+  return `${font} · ${scale}%`
+})
 
 const wallpaperLabel = computed(() => {
   const wallpaper = preferences.value.wallpaper
@@ -72,8 +76,8 @@ async function toggleOnlineStatus() {
       />
       <SettingsRow
         v-if="fontsEnabled"
-        :label="t('ui.settings.font')"
-        :value="fontLabel"
+        :label="t('ui.settings.layout_and_fonts', 'Layout & Fonts')"
+        :value="layoutFontsLabel"
         chevron
         @click="$emit('navigate', 'font')"
       />

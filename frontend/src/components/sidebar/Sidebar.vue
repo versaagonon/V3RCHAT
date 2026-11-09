@@ -100,43 +100,59 @@ function onNavPointerLeave() {
       <FavoriteContactsList v-else />
     </div>
 
-    <nav
-      class="chatify-bottom-bar chatify-sidebar-bottom-nav liquid-glass-bottom-nav chatify:flex chatify:items-center chatify:justify-around chatify:gap-2 chatify:px-3"
-      :style="{
-        '--glare-x': navGlareX,
-        '--glare-y': navGlareY,
-        '--glare-opacity': navGlareOpacity,
-      }"
-      :aria-label="$t('ui.sidebar.navigation')"
-      @pointermove="onNavPointerMove"
-      @pointerleave="onNavPointerLeave"
-    >
-      <span class="liquid-glass-nav-glare" aria-hidden="true" />
-      <span class="liquid-glass-nav-rim" aria-hidden="true" />
-
-      <button
-        type="button"
-        class="chatify-sidebar-nav-item liquid-glass-nav-item"
-        :class="{ 'chatify-sidebar-nav-item-active': sidebarTab === 'chats' }"
-        @click="conversationsStore.setSidebarTab('chats')"
+    <div class="chatify-sidebar-bottom-dock">
+      <nav
+        class="chatify-bottom-bar chatify-sidebar-bottom-nav chatify-sidebar-floating-nav liquid-glass-floating-nav"
+        :style="{
+          '--glare-x': navGlareX,
+          '--glare-y': navGlareY,
+          '--glare-opacity': navGlareOpacity,
+        }"
+        :aria-label="$t('ui.sidebar.navigation')"
+        @pointermove="onNavPointerMove"
+        @pointerleave="onNavPointerLeave"
       >
-        <svg class="chatify:h-5 chatify:w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-        </svg>
-        <span>{{ $t('ui.sidebar.chats') }}</span>
-      </button>
+        <span class="liquid-glass-refraction-fringe" aria-hidden="true" />
+        <span class="liquid-glass-specular" aria-hidden="true" />
+        <span class="liquid-glass-nav-glare" aria-hidden="true" />
+        <span class="liquid-glass-nav-rim" aria-hidden="true" />
 
-      <button
-        type="button"
-        class="chatify-sidebar-nav-item liquid-glass-nav-item"
-        :class="{ 'chatify-sidebar-nav-item-active': sidebarTab === 'favorites' }"
-        @click="conversationsStore.setSidebarTab('favorites')"
-      >
-        <svg class="chatify:h-5 chatify:w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
-        </svg>
-        <span>{{ $t('ui.sidebar.favorites') }}</span>
-      </button>
-    </nav>
+        <!-- Single Sliding Jelly Indicator Pill -->
+        <span
+          class="liquid-glass-sliding-pill"
+          :class="sidebarTab === 'favorites' ? 'pos-favorites' : 'pos-chats'"
+          aria-hidden="true"
+        >
+          <span class="sliding-pill-glow" />
+          <span class="sliding-pill-rim" />
+        </span>
+
+        <button
+          type="button"
+          class="chatify-sidebar-nav-item liquid-glass-nav-tab"
+          :class="{ 'chatify-sidebar-nav-item-active': sidebarTab === 'chats' }"
+          :aria-label="$t('ui.sidebar.chats')"
+          :title="$t('ui.sidebar.chats')"
+          @click="conversationsStore.setSidebarTab('chats')"
+        >
+          <svg class="chatify:h-5.5 chatify:w-5.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+          </svg>
+        </button>
+
+        <button
+          type="button"
+          class="chatify-sidebar-nav-item liquid-glass-nav-tab"
+          :class="{ 'chatify-sidebar-nav-item-active': sidebarTab === 'favorites' }"
+          :aria-label="$t('ui.sidebar.favorites')"
+          :title="$t('ui.sidebar.favorites')"
+          @click="conversationsStore.setSidebarTab('favorites')"
+        >
+          <svg class="chatify:h-5.5 chatify:w-5.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+          </svg>
+        </button>
+      </nav>
+    </div>
   </div>
 </template>

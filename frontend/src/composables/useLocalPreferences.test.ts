@@ -159,4 +159,34 @@ describe('useLocalPreferences', () => {
     expect(tokens.primary).toBe('#ff0000')
     expect(tokens.bubbleOut).toBeTruthy()
   })
+
+  it('applies font size, ui scale, and density classes', () => {
+    applyPreferences({
+      ...defaultPreferences(),
+      fontSize: 16,
+      uiScale: 110,
+      density: 'compact',
+    })
+
+    expect(document.documentElement.style.getPropertyValue('--chatify-font-size-base')).toBe('16px')
+    expect(document.documentElement.style.getPropertyValue('--chatify-text-sm')).toBe('1.0000rem')
+    expect(document.documentElement.style.getPropertyValue('--chatify-text-xs')).toBe('0.8571rem')
+    expect(document.documentElement.style.getPropertyValue('--chatify-ui-scale')).toBe('1.1')
+    expect(document.documentElement.style.fontSize).toBe('17.6px')
+    expect(document.body.classList.contains('chatify-density-compact')).toBe(true)
+    expect(document.body.classList.contains('chatify-density-comfortable')).toBe(false)
+  })
+
+  it('serializes layout and font fields for server', () => {
+    const payload = preferencesForServer({
+      ...defaultPreferences(),
+      fontSize: 18,
+      uiScale: 90,
+      density: 'spacious',
+    })
+
+    expect(payload.fontSize).toBe(18)
+    expect(payload.uiScale).toBe(90)
+    expect(payload.density).toBe('spacious')
+  })
 })

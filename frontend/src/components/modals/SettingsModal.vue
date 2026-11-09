@@ -35,7 +35,7 @@ const open = computed(() => activeModal.value === 'settings')
 const titles = computed<Record<SettingsScreen, string>>(() => ({
   root: t('ui.settings.title'),
   themes: t('ui.settings.themes'),
-  font: t('ui.settings.font_title'),
+  font: t('ui.settings.layout_and_fonts_title', 'Layout & Fonts'),
   wallpaper: t('ui.settings.wallpaper'),
   blocked: t('ui.settings.blocked_contacts'),
 }))
@@ -121,7 +121,7 @@ async function saveChanges() {
       @save="saveChanges"
     >
       <Transition :name="direction === 'forward' ? 'chatify-slide-left' : 'chatify-slide-right'" mode="out-in">
-        <div :key="screen" class="chatify:min-w-0 chatify:overflow-hidden">
+        <div :key="screen" class="chatify:min-h-0 chatify:min-w-0 chatify:w-full">
           <SettingsRootView v-if="screen === 'root'" @navigate="navigate" />
           <SettingsThemesView v-else-if="screen === 'themes'" />
           <SettingsFontView v-else-if="screen === 'font'" />

@@ -12,20 +12,53 @@ use Illuminate\Http\Request;
 
 final class ChatifyBootData
 {
-    public static function fromRequest(Request $request, ?string $conversationId = null): array
+    public static function fromRequest(Request $request, ?string $conversationId = null, ?string $authMode = null): array
     {
         $user = $request->user();
         $locale = ChatifyLocale::current();
         $fallback = ChatifyLocale::fallback();
 
         $broadcast = config('chatify.frontend.broadcast', []);
-        $settings = app(UserSettingsService::class)->forUser($user);
         $attachments = app(AttachmentService::class);
         $blockService = app(BlockService::class);
 
+        if ($user !== null) {
+            $settings = app(UserSettingsService::class)->forUser($user);
+            $userData = (new UserResource($user))->resolve($request);
+            $blockedUserIds = $blockService->blockedUserIdsFor($user);
+            $preferences = [
+                'dark_mode' => (bool) $settings->dark_mode,
+                'theme_preferences' => $settings->theme_preferences,
+                'chat_background_url' => $attachments->chatBackgroundUrl($settings->chat_background),
+                'show_online_status' => (bool) $settings->active_status,
+            ];
+        } else {
+            $userData = null;
+            $blockedUserIds = [];
+            $preferences = [
+                'dark_mode' => true,
+                'theme_preferences' => [
+                    'theme' => 'monochrome',
+                    'font' => 'system',
+                    'wallpaper' => [
+                        'kind' => 'pattern',
+                        'patternId' => 'glamorous',
+                        'imageUrl' => null,
+                        'blurEnabled' => false,
+                        'blurAmount' => 50,
+                    ],
+                ],
+                'chat_background_url' => null,
+                'show_online_status' => false,
+            ];
+        }
+
         return [
-            'user' => (new UserResource($user))->resolve($request),
-            'messaging_blocked_user_ids' => $blockService->blockedUserIdsFor($user),
+            'user' => $userData,
+            'authMode' => $authMode,
+            'loginUrl' => url('/login'),
+            'registerUrl' => url('/register'),
+            'messaging_blocked_user_ids' => $blockedUserIds,
             'default_avatar_url' => $blockService->defaultAvatarUrl(),
             'apiBase' => url('/'.trim(config('chatify.api.prefix', 'api/chatify/v1'), '/')),
             'broadcastAuthUrl' => url('/'.trim(config('chatify.api.prefix', 'api/chatify/v1'), '/').'/broadcasting/auth'),
@@ -47,12 +80,7 @@ final class ChatifyBootData
             'themes' => ChatifyAppearanceConfig::themeIds(),
             'fonts' => ChatifyAppearanceConfig::fontIds(),
             'wallpaperPatterns' => ChatBackgroundPatterns::all(),
-            'preferences' => [
-                'dark_mode' => (bool) $settings->dark_mode,
-                'theme_preferences' => $settings->theme_preferences,
-                'chat_background_url' => $attachments->chatBackgroundUrl($settings->chat_background),
-                'show_online_status' => (bool) $settings->active_status,
-            ],
+            'preferences' => $preferences,
             'attachments' => [
                 'maxUploadSize' => (int) config('chatify.attachments.max_upload_size', 150),
                 'allowedImages' => config('chatify.attachments.allowed_images', []),

@@ -15,7 +15,7 @@ const { showThreadOnMobile } = storeToRefs(uiStore)
     <aside
       class="chatify:flex chatify:h-full chatify:flex-col chatify:border-e chatify:bg-chatify-sidebar chatify-sidebar-divide"
       :class="[
-        isMobile ? 'chatify:w-full' : 'chatify:w-[380px] chatify:shrink-0',
+        isMobile ? 'chatify:w-full' : 'chatify:w-[23.75rem] chatify:shrink-0',
         isMobile && showThreadOnMobile ? 'chatify:hidden' : 'chatify:flex',
       ]"
     >

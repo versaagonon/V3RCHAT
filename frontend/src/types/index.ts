@@ -206,7 +206,10 @@ export interface SavedMessagesConfig {
 }
 
 export interface BootConfig {
-  user: ChatifyUser
+  user: ChatifyUser | null
+  authMode?: 'login' | 'register' | 'landing' | null
+  loginUrl?: string
+  registerUrl?: string
   apiBase: string
   broadcastAuthUrl: string
   csrfToken: string

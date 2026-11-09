@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, provide, watch } from 'vue'
+import { computed, onMounted, onUnmounted, provide, watch } from 'vue'
 import type Echo from 'laravel-echo'
 import type {
   BootConfig,
@@ -27,6 +27,8 @@ import { useMessagesStore } from '../stores/messages'
 import { usePresenceStore } from '../stores/presence'
 import { useTypingStore } from '../stores/typing'
 import { useUiStore } from '../stores/ui'
+import AuthPage from './auth/AuthPage.vue'
+import LandingPage from './landing/LandingPage.vue'
 import ChatifyApp from './layout/ChatifyApp.vue'
 import ContactInfoModal from './modals/ContactInfoModal.vue'
 import CreateGroupModal from './modals/CreateGroupModal.vue'
@@ -40,6 +42,10 @@ import ToastHost from './ui/ToastHost.vue'
 const props = defineProps<{
   config: BootConfig
 }>()
+
+const isLandingMode = computed(() => props.config.authMode === 'landing')
+const isAuthMode = computed(() => !isLandingMode.value && (!props.config.user || Boolean(props.config.authMode)))
+const isExternalView = computed(() => isLandingMode.value || isAuthMode.value)
 
 const configStore = useConfigStore()
 const connectionStore = useConnectionStore()
@@ -140,7 +146,7 @@ function scheduleResyncAfterReconnect() {
 }
 
 function playIncomingSoundForMessage(message: ChatifyMessage) {
-  if (message.attributes.kind === 'system') {
+  if (!props.config.user || message.attributes.kind === 'system') {
     return
   }
 
@@ -160,6 +166,10 @@ function playIncomingSoundForMessage(message: ChatifyMessage) {
 }
 
 function playIncomingSoundForInbox(conversation: ChatifyConversation) {
+  if (!props.config.user) {
+    return
+  }
+
   const lastMessage = conversation.relationships.last_message
   if (!lastMessage || lastMessage.attributes.kind === 'system') {
     return
@@ -181,6 +191,10 @@ function playIncomingSoundForInbox(conversation: ChatifyConversation) {
 }
 
 function handleInboxUpdated(payload: unknown) {
+  if (!props.config.user) {
+    return
+  }
+
   const conversation = normalizeInboxPayload(payload)
   if (!conversation) {
     return
@@ -201,15 +215,20 @@ function handleInboxUpdated(payload: unknown) {
 }
 
 function setupInboxSubscription() {
+  if (!props.config.user) {
+    return
+  }
+
+  const currentUser = props.config.user
   unsubscribeInbox?.()
   unsubscribeInbox = subscribeToUserInbox(
     echo as Echo<'pusher'> | null,
-    props.config.user.id,
+    currentUser.id,
     {
       onInboxUpdated: handleInboxUpdated,
       onGroupMembershipRevoked: (payload) => {
         const data = payload as GroupMembershipRevokedPayload
-        if (String(data.user_id) !== String(props.config.user.id)) {
+        if (String(data.user_id) !== String(currentUser.id)) {
           return
         }
 
@@ -230,7 +249,7 @@ function setupInboxSubscription() {
         presenceStore.setOnline(data.user_id, data.is_online)
       },
       onUserBlockChanged: (payload) => {
-        contactsStore.handleUserBlockChanged(payload as UserBlockChangedPayload, props.config.user.id)
+        contactsStore.handleUserBlockChanged(payload as UserBlockChangedPayload, currentUser.id)
       },
     },
   )
@@ -240,9 +259,11 @@ function bindEcho(conversationId: string | null) {
   unsubscribeConversation?.()
   unsubscribeConversation = null
 
-  if (!conversationId) {
+  if (!conversationId || !props.config.user) {
     return
   }
+
+  const currentUserId = String(props.config.user.id)
 
   unsubscribeConversation = subscribeToConversation(echo as Echo<'pusher'> | null, conversationId, {
     onMessageSent: (payload) => {
@@ -254,9 +275,9 @@ function bindEcho(conversationId: string | null) {
     onMessageDeleted: (payload) => messagesStore.handleMessageDeleted(payload as MessageDeletedPayload),
     onConversationRead: (payload) => {
       const data = payload as ConversationReadPayload
-      if (String(data.user_id) !== String(props.config.user.id)) {
+      if (String(data.user_id) !== currentUserId) {
         messagesStore.byConversation[data.conversation_id]?.items.forEach((message) => {
-          if (String(message.relationships.sender.data.id) === String(props.config.user.id)) {
+          if (String(message.relationships.sender.data.id) === currentUserId) {
             message.attributes.read = true
           }
         })
@@ -281,7 +302,7 @@ function bindEcho(conversationId: string | null) {
       if (
         data.is_typing
         && conversationsStore.activeId === data.conversation_id
-        && String(data.user_id) !== String(props.config.user.id)
+        && String(data.user_id) !== currentUserId
       ) {
         playTypingSound()
       }
@@ -296,6 +317,10 @@ function onVisibilityChange() {
 }
 
 onMounted(async () => {
+  if (isExternalView.value) {
+    return
+  }
+
   setupInboxSubscription()
 
   unsubscribeReconnect = bindEchoReconnect(echo as Echo<'pusher'> | null, () => {
@@ -332,6 +357,10 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  if (isExternalView.value) {
+    return
+  }
+
   if (resyncTimer !== null) {
     window.clearTimeout(resyncTimer)
     resyncTimer = null
@@ -350,6 +379,10 @@ onUnmounted(() => {
 watch(
   () => conversationsStore.activeId,
   async (id, previousId) => {
+    if (isExternalView.value) {
+      return
+    }
+
     if (previousId) {
       typingStore.clearConversation(previousId)
     }
@@ -365,13 +398,32 @@ watch(
 </script>
 
 <template>
-  <ChatifyApp />
-  <ContactInfoModal />
-  <GroupInfoModal />
-  <CreateGroupModal />
-  <NewChatModal />
-  <ForwardMessageModal />
-  <SettingsModal />
-  <ConfirmDialog />
-  <ToastHost />
+  <LandingPage
+    v-if="isLandingMode"
+    :user="props.config.user"
+    :login-url="props.config.loginUrl ?? '/login'"
+    :register-url="props.config.registerUrl ?? '/register'"
+    :dashboard-url="props.config.webBase ?? '/v3rchat'"
+    :app-name="props.config.appName ?? 'V3RCHAT'"
+  />
+  <AuthPage
+    v-else-if="isAuthMode"
+    :initial-mode="props.config.authMode === 'register' ? 'register' : 'login'"
+    :csrf-token="props.config.csrfToken"
+    :login-url="props.config.loginUrl ?? '/login'"
+    :register-url="props.config.registerUrl ?? '/register'"
+    :dashboard-url="props.config.webBase ?? '/v3rchat'"
+    :app-name="props.config.appName ?? 'V3RCHAT'"
+  />
+  <template v-else>
+    <ChatifyApp />
+    <ContactInfoModal />
+    <GroupInfoModal />
+    <CreateGroupModal />
+    <NewChatModal />
+    <ForwardMessageModal />
+    <SettingsModal />
+    <ConfirmDialog />
+    <ToastHost />
+  </template>
 </template>

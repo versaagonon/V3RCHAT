@@ -5,6 +5,10 @@ import { defineConfig } from 'vite'
 
 export default defineConfig({
   plugins: [vue(), tailwindcss()],
+  server: {
+    origin: 'http://localhost:5173',
+    cors: true,
+  },
   define: {
     'process.env.NODE_ENV': JSON.stringify('production'),
     'process.env': '{}',
@@ -13,6 +17,7 @@ export default defineConfig({
     postcss: './postcss.config.js',
   },
   build: {
+    assetsInlineLimit: 1000000,
     lib: {
       entry: resolve(__dirname, 'src/main.ts'),
       name: 'Chatify',

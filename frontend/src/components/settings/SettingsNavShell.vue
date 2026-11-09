@@ -70,7 +70,7 @@ defineExpose({ scrollToTop })
 
     <div
       ref="scrollContainer"
-      class="chatify:min-h-0 chatify:flex-1 chatify:overflow-x-hidden chatify:min-w-0"
+      class="chatify-nav-shell-scroll chatify:min-h-0 chatify:flex-1 chatify:overflow-x-hidden chatify:min-w-0"
       :class="contentScroll === false ? 'chatify:overflow-hidden' : 'chatify:overflow-y-auto'"
     >
       <slot />

@@ -12,7 +12,7 @@ declare global {
 export function createEcho(config: BootConfig): Echo<'pusher'> | null {
   const { broadcast, broadcastAuthUrl, csrfToken } = config
 
-  if (!broadcast.key || broadcast.driver === 'null' || broadcast.driver === 'log') {
+  if (!config.user || Boolean(config.authMode) || !broadcast.key || broadcast.driver === 'null' || broadcast.driver === 'log') {
     return null
   }
 

@@ -12,7 +12,7 @@ import {
 } from '../composables/useBootConfig'
 import { fontOptions } from '../themes/fonts'
 import { getThemeById, themePresets } from '../themes/presets'
-import type { ChatifyThemePreferences, WallpaperPreferences } from '../themes/types'
+import type { ChatifyThemePreferences, InterfaceDensity, WallpaperPreferences } from '../themes/types'
 import type { BootConfig } from '../types'
 import { chatifyT } from '../i18n/nonComponent'
 import { extractErrorMessage } from '../utils/errors'
@@ -70,7 +70,7 @@ export const useConfigStore = defineStore('config', () => {
     )
   })
 
-  const defaultAvatarUrl = computed(() => boot.value?.default_avatar_url ?? boot.value?.user.attributes.avatar ?? '')
+  const defaultAvatarUrl = computed(() => boot.value?.default_avatar_url ?? boot.value?.user?.attributes?.avatar ?? '')
 
   const soundsEnabled = computed(() => boot.value?.sounds?.enabled ?? false)
   const savedMessagesTitle = computed(() => boot.value?.savedMessages?.title ?? chatifyT('ui.saved_messages'))
@@ -132,6 +132,18 @@ export const useConfigStore = defineStore('config', () => {
 
   function setFontFamily(fontFamily: string) {
     updateDraft({ fontFamily })
+  }
+
+  function setFontSize(fontSize: number) {
+    updateDraft({ fontSize })
+  }
+
+  function setUiScale(uiScale: number) {
+    updateDraft({ uiScale })
+  }
+
+  function setDensity(density: InterfaceDensity) {
+    updateDraft({ density })
   }
 
   function setWallpaper(next: Partial<WallpaperPreferences>) {
@@ -359,6 +371,9 @@ export const useConfigStore = defineStore('config', () => {
     setTheme,
     setAccentColor,
     setFontFamily,
+    setFontSize,
+    setUiScale,
+    setDensity,
     setWallpaper,
     selectWallpaperImage,
     clearWallpaperImage,

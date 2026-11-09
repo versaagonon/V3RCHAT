@@ -15,6 +15,7 @@ import {
 } from '../themes/patterns'
 import type {
   ChatifyThemePreferences,
+  InterfaceDensity,
   ResolvedTheme,
   ThemeTokenSet,
   WallpaperPreferences,
@@ -39,6 +40,9 @@ export function defaultPreferences(defaultColor = '#ffffff'): ChatifyThemePrefer
     themeId: theme.id,
     accentColor: defaultColor ?? theme.defaultAccent,
     fontFamily: sanitizeFontId('system'),
+    fontSize: 14,
+    uiScale: 100,
+    density: 'comfortable',
     wallpaper: defaultWallpaper(),
   }
 }
@@ -89,6 +93,32 @@ function clampBlurAmount(value: unknown, fallback: number): number {
   }
 
   return Math.min(100, Math.max(0, Math.round(amount)))
+}
+
+export function clampFontSize(value: unknown, fallback = 14): number {
+  const num = typeof value === 'number' ? value : Number(value)
+  if (!Number.isFinite(num)) {
+    return fallback
+  }
+
+  return Math.min(20, Math.max(12, Math.round(num)))
+}
+
+export function clampUiScale(value: unknown, fallback = 100): number {
+  const num = typeof value === 'number' ? value : Number(value)
+  if (!Number.isFinite(num)) {
+    return fallback
+  }
+
+  return Math.min(120, Math.max(80, Math.round(num)))
+}
+
+export function normalizeDensity(value: unknown, fallback: InterfaceDensity = 'comfortable'): InterfaceDensity {
+  if (value === 'compact' || value === 'comfortable' || value === 'spacious') {
+    return value
+  }
+
+  return fallback
 }
 
 function applyWallpaperVars(preferences: ChatifyThemePreferences, patternTintColor: string): void {
@@ -146,6 +176,27 @@ export function applyPreferences(preferences: ChatifyThemePreferences): void {
 
   applyWallpaperVars(preferences, resolved.patternTintColor)
   applyFont(preferences)
+
+  const fontSize = clampFontSize(preferences.fontSize, 14)
+  const uiScale = clampUiScale(preferences.uiScale, 100)
+  const density = normalizeDensity(preferences.density, 'comfortable')
+
+  setCssVar('--chatify-font-size-base', `${fontSize}px`)
+  setCssVar('--chatify-text-xs', `${(fontSize * (12 / 14) / 16).toFixed(4)}rem`)
+  setCssVar('--chatify-text-sm', `${(fontSize / 16).toFixed(4)}rem`)
+  setCssVar('--chatify-text-base', `${(fontSize * (16 / 14) / 16).toFixed(4)}rem`)
+  setCssVar('--chatify-text-lg', `${(fontSize * (18 / 14) / 16).toFixed(4)}rem`)
+  setCssVar('--chatify-text-xl', `${(fontSize * (20 / 14) / 16).toFixed(4)}rem`)
+  setCssVar('--chatify-ui-scale', `${uiScale / 100}`)
+
+  const scale = uiScale / 100
+  document.documentElement.style.fontSize = `${16 * scale}px`
+
+  const densityTargets = [document.body, chatifyRoot()].filter(Boolean) as HTMLElement[]
+  for (const target of densityTargets) {
+    target.classList.remove('chatify-density-compact', 'chatify-density-comfortable', 'chatify-density-spacious')
+    target.classList.add(`chatify-density-${density}`)
+  }
 }
 
 function migrateLegacy(raw: Record<string, unknown>, defaultColor?: string): ChatifyThemePreferences {
@@ -157,6 +208,9 @@ function migrateLegacy(raw: Record<string, unknown>, defaultColor?: string): Cha
       themeId: raw.themeId,
       accentColor: typeof raw.accentColor === 'string' ? raw.accentColor : base.accentColor,
       fontFamily: typeof raw.fontFamily === 'string' ? sanitizeFontId(raw.fontFamily) : base.fontFamily,
+      fontSize: clampFontSize(raw.fontSize, 14),
+      uiScale: clampUiScale(raw.uiScale, 100),
+      density: normalizeDensity(raw.density, 'comfortable'),
       wallpaper: normalizeWallpaper(wallpaperRaw, base.wallpaper),
     }
   }
@@ -181,6 +235,9 @@ function migrateLegacy(raw: Record<string, unknown>, defaultColor?: string): Cha
     themeId,
     accentColor: legacyColor ?? getThemeById(themeId).defaultAccent,
     fontFamily: typeof raw.fontFamily === 'string' ? sanitizeFontId(raw.fontFamily) : base.fontFamily,
+    fontSize: clampFontSize(raw.fontSize, 14),
+    uiScale: clampUiScale(raw.uiScale, 100),
+    density: normalizeDensity(raw.density, 'comfortable'),
     wallpaper,
   }
 }
@@ -253,6 +310,9 @@ export function normalizePreferences(
     themeId: input.themeId && isThemeId(input.themeId) ? input.themeId : sanitizeThemeId(base.themeId),
     accentColor: input.accentColor ?? base.accentColor,
     fontFamily: sanitizeFontId(input.fontFamily ?? base.fontFamily),
+    fontSize: clampFontSize(input.fontSize, base.fontSize ?? 14),
+    uiScale: clampUiScale(input.uiScale, base.uiScale ?? 100),
+    density: normalizeDensity(input.density, base.density ?? 'comfortable'),
     wallpaper: normalizeWallpaper(input.wallpaper, base.wallpaper),
   }
 }
@@ -279,6 +339,9 @@ export function preferencesForServer(preferences: ChatifyThemePreferences): Reco
     themeId: preferences.themeId,
     accentColor: preferences.accentColor,
     fontFamily: preferences.fontFamily,
+    fontSize: clampFontSize(preferences.fontSize, 14),
+    uiScale: clampUiScale(preferences.uiScale, 100),
+    density: normalizeDensity(preferences.density, 'comfortable'),
     wallpaper: {
       kind: preferences.wallpaper.kind,
       patternId: preferences.wallpaper.patternId,
