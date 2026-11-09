@@ -3,14 +3,19 @@ import { computed, ref } from 'vue'
 import { useChatifyDirection } from '../../composables/useChatifyDirection'
 import { useChatifyI18n } from '../../composables/useChatifyI18n'
 import { useConfigStore } from '../../stores/config'
+import { useSettingsStore } from '../../stores/settings'
+import { useConfirmStore } from '../../stores/confirm'
 import { storeToRefs } from 'pinia'
 import UserAvatar from '../ui/UserAvatar.vue'
 import DropdownMenu, { type DropdownMenuItem } from '../ui/DropdownMenu.vue'
 
 const configStore = useConfigStore()
+const settingsStore = useSettingsStore()
+const confirmStore = useConfirmStore()
 const { t } = useChatifyI18n()
 const { isRtl } = useChatifyDirection()
 const { user, savedAvatarUrl, avatarUploading } = storeToRefs(configStore)
+const { loggingOut } = storeToRefs(settingsStore)
 
 const fileInput = ref<HTMLInputElement | null>(null)
 
@@ -27,6 +32,8 @@ const menuItems = computed<DropdownMenuItem[]>(() => {
   if (canRemove.value) {
     items.push({ id: 'remove', label: t('ui.settings.remove_photo'), danger: true })
   }
+
+  items.push({ id: 'logout', label: t('ui.settings.logout', 'Log Out'), danger: true })
 
   return items
 })
@@ -57,6 +64,23 @@ async function removeAvatar() {
   await configStore.removeAvatar()
 }
 
+async function handleLogout() {
+  if (loggingOut.value) {
+    return
+  }
+
+  const confirmed = await confirmStore.confirm({
+    title: t('ui.confirm.logout.title', 'Log Out'),
+    message: t('ui.confirm.logout.message', 'Are you sure you want to end your session and log out?'),
+    confirmLabel: t('ui.confirm.logout.confirm', 'Log Out'),
+    variant: 'danger',
+  })
+
+  if (confirmed) {
+    await settingsStore.logout()
+  }
+}
+
 function onMenuSelect(id: string) {
   if (id === 'change') {
     openPicker()
@@ -65,6 +89,11 @@ function onMenuSelect(id: string) {
 
   if (id === 'remove') {
     void removeAvatar()
+    return
+  }
+
+  if (id === 'logout') {
+    void handleLogout()
   }
 }
 </script>

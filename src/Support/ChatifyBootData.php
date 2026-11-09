@@ -18,7 +18,18 @@ final class ChatifyBootData
         $locale = ChatifyLocale::current();
         $fallback = ChatifyLocale::fallback();
 
+        $broadcastingDefault = in_array(config('broadcasting.default', 'null'), ['pusher', 'reverb'], true)
+            ? config('broadcasting.default')
+            : 'null';
+        $connConfig = config("broadcasting.connections.{$broadcastingDefault}", []);
         $broadcast = config('chatify.frontend.broadcast', []);
+
+        $broadcastKey = $broadcast['key'] ?? ($connConfig['key'] ?? env('REVERB_APP_KEY', env('PUSHER_APP_KEY')));
+        $broadcastCluster = $broadcast['cluster'] ?? ($connConfig['options']['cluster'] ?? env('PUSHER_APP_CLUSTER', 'mt1'));
+        $broadcastHost = $broadcast['wsHost'] ?? ($connConfig['options']['host'] ?? env('REVERB_HOST', env('PUSHER_HOST', '127.0.0.1')));
+        $broadcastPort = (int) ($broadcast['wsPort'] ?? ($connConfig['options']['port'] ?? env('REVERB_PORT', 8080)));
+        $broadcastTls = (bool) ($broadcast['forceTLS'] ?? ($connConfig['options']['useTLS'] ?? (env('REVERB_SCHEME', 'http') === 'https')));
+
         $attachments = app(AttachmentService::class);
         $blockService = app(BlockService::class);
 
@@ -56,15 +67,16 @@ final class ChatifyBootData
         return [
             'user' => $userData,
             'authMode' => $authMode,
-            'loginUrl' => url('/login'),
-            'registerUrl' => url('/register'),
+            'loginUrl' => $request ? $request->root().'/login' : url('/login'),
+            'registerUrl' => $request ? $request->root().'/register' : url('/register'),
+            'logoutUrl' => $request ? $request->root().'/logout' : url('/logout'),
             'messaging_blocked_user_ids' => $blockedUserIds,
             'default_avatar_url' => $blockService->defaultAvatarUrl(),
-            'apiBase' => url('/'.trim(config('chatify.api.prefix', 'api/chatify/v1'), '/')),
-            'broadcastAuthUrl' => url('/'.trim(config('chatify.api.prefix', 'api/chatify/v1'), '/').'/broadcasting/auth'),
+            'apiBase' => $request ? $request->root().'/'.trim(config('chatify.api.prefix', 'api/chatify/v1'), '/') : url('/'.trim(config('chatify.api.prefix', 'api/chatify/v1'), '/')),
+            'broadcastAuthUrl' => $request ? $request->root().'/'.trim(config('chatify.api.prefix', 'api/chatify/v1'), '/').'/broadcasting/auth' : url('/'.trim(config('chatify.api.prefix', 'api/chatify/v1'), '/').'/broadcasting/auth'),
             'csrfToken' => csrf_token(),
             'conversationId' => $conversationId,
-            'webBase' => url('/'.trim(config('chatify.web.prefix', 'chatify'), '/')),
+            'webBase' => $request ? $request->root().'/'.trim(config('chatify.web.prefix', 'v3rchat'), '/') : url('/'.trim(config('chatify.web.prefix', 'chatify'), '/')),
             'locale' => $locale,
             'fallbackLocale' => $fallback,
             'dir' => ChatifyLocale::direction($locale),
@@ -91,14 +103,12 @@ final class ChatifyBootData
                 'apiKey' => ChatifyAppearanceConfig::giphyApiKey(),
             ],
             'broadcast' => [
-                'driver' => in_array(config('broadcasting.default', 'null'), ['pusher', 'reverb'], true)
-                    ? config('broadcasting.default')
-                    : 'null',
-                'key' => $broadcast['key'] ?? null,
-                'cluster' => $broadcast['cluster'] ?? null,
-                'wsHost' => $broadcast['wsHost'] ?? null,
-                'wsPort' => (int) ($broadcast['wsPort'] ?? 443),
-                'forceTLS' => (bool) ($broadcast['forceTLS'] ?? true),
+                'driver' => $broadcastingDefault,
+                'key' => $broadcastKey,
+                'cluster' => $broadcastCluster,
+                'wsHost' => $broadcastHost,
+                'wsPort' => $broadcastPort,
+                'forceTLS' => $broadcastTls,
             ],
             'sounds' => [
                 'enabled' => (bool) config('chatify.sounds.enabled', true),

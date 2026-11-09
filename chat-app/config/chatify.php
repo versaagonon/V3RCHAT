@@ -178,6 +178,18 @@ return [
         'title' => env('CHATIFY_SAVED_MESSAGES_TITLE', 'Saved Messages'),
     ],
 
+    'frontend' => [
+        'dev_server' => env('CHATIFY_DEV_SERVER', 'http://127.0.0.1:5173'),
+        'asset_url' => env('CHATIFY_ASSET_URL', null),
+        'broadcast' => [
+            'key' => env('REVERB_APP_KEY', env('PUSHER_APP_KEY')),
+            'wsHost' => env('REVERB_HOST', '127.0.0.1'),
+            'wsPort' => (int) env('REVERB_PORT', 8080),
+            'forceTLS' => env('REVERB_SCHEME', 'http') === 'https',
+            'cluster' => env('PUSHER_APP_CLUSTER', 'mt1'),
+        ],
+    ],
+
     'rtl_locales' => ['ar', 'he', 'fa', 'ur'],
 
     'locale' => [

@@ -1,11 +1,15 @@
 <!-- language: Vue 3 / TypeScript, file: frontend/src/components/landing/LandingPage.vue, target: browser -->
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { animate, inView, stagger } from 'motion'
 import type { ChatifyUser } from '../../types'
 import logoImg from '../../assets/images/logo_transparant.png'
+import land1Avatar from '../../assets/images/land1.jpg'
+import land2Avatar from '../../assets/images/land2.jpg'
 
 const logoUrl = logoImg || '/vendor/chatify/logo_transparant.png'
+const donAvatarUrl = land1Avatar
+const ravenAvatarUrl = land2Avatar
 
 defineProps<{
   user?: ChatifyUser | null
@@ -177,16 +181,34 @@ const fullLine2 = 'Zero-Trace Control.'
 
 const displayedLine1 = ref('')
 const displayedLine2 = ref('')
-const isCursorBlinking = ref(false)
+const activeLine = ref<1 | 2>(1)
+const isCursorBlinking = ref(true)
+
+const isHeadlineEmpty = computed(
+  () => displayedLine1.value.length === 0 && displayedLine2.value.length === 0
+)
 
 let typewriterTimer: number | null = null
 
 function startTypewriter() {
-  let phase: 'typing1' | 'typing2' | 'hold' | 'deleting2' | 'deleting1' | 'pause' = 'typing1'
+  let phase: 'idle' | 'typing1' | 'typing2' | 'hold' | 'deleting2' | 'deleting1' = 'idle'
   let charIdx = 0
+
+  displayedLine1.value = ''
+  displayedLine2.value = ''
+  activeLine.value = 1
+  isCursorBlinking.value = true
+
+  // Initial state: Start with only the logo emblem visible. Delay 5 seconds before typing begins.
+  typewriterTimer = window.setTimeout(() => {
+    phase = 'typing1'
+    charIdx = 0
+    tick()
+  }, 5000)
 
   function tick() {
     if (phase === 'typing1') {
+      activeLine.value = 1
       isCursorBlinking.value = false
       if (charIdx < fullLine1.length) {
         charIdx++
@@ -194,10 +216,12 @@ function startTypewriter() {
         typewriterTimer = window.setTimeout(tick, 55)
       } else {
         phase = 'typing2'
+        activeLine.value = 2
         charIdx = 0
-        typewriterTimer = window.setTimeout(tick, 80)
+        typewriterTimer = window.setTimeout(tick, 85)
       }
     } else if (phase === 'typing2') {
+      activeLine.value = 2
       isCursorBlinking.value = false
       if (charIdx < fullLine2.length) {
         charIdx++
@@ -206,39 +230,42 @@ function startTypewriter() {
       } else {
         phase = 'hold'
         isCursorBlinking.value = true
-        // 5 seconds hold as requested by Versaa
+        // Hold the completed text for 5 seconds
         typewriterTimer = window.setTimeout(tick, 5000)
       }
     } else if (phase === 'hold') {
       phase = 'deleting2'
+      activeLine.value = 2
       isCursorBlinking.value = false
       tick()
     } else if (phase === 'deleting2') {
+      activeLine.value = 2
       if (displayedLine2.value.length > 0) {
         displayedLine2.value = displayedLine2.value.slice(0, -1)
         typewriterTimer = window.setTimeout(tick, 28)
       } else {
+        // Line 2 completely erased -> immediately jump cursor up to line 1
         phase = 'deleting1'
+        activeLine.value = 1
         typewriterTimer = window.setTimeout(tick, 28)
       }
     } else if (phase === 'deleting1') {
+      activeLine.value = 1
       if (displayedLine1.value.length > 0) {
         displayedLine1.value = displayedLine1.value.slice(0, -1)
         typewriterTimer = window.setTimeout(tick, 28)
       } else {
-        phase = 'pause'
+        // Both lines completely erased -> hold logo alone for 5 seconds before next cycle
+        phase = 'idle'
         isCursorBlinking.value = true
-        // 2 seconds pause as requested by Versaa
-        typewriterTimer = window.setTimeout(tick, 2000)
+        typewriterTimer = window.setTimeout(() => {
+          phase = 'typing1'
+          charIdx = 0
+          tick()
+        }, 5000)
       }
-    } else if (phase === 'pause') {
-      phase = 'typing1'
-      charIdx = 0
-      tick()
     }
   }
-
-  tick()
 }
 
 // Mount animations using lightweight motion
@@ -411,23 +438,28 @@ onUnmounted(() => {
       <!-- HERO SECTION -->
       <section class="v3r-hero-section">
         <!-- Tactical Hero Headline with Sovereign Emblem & Typewriter Engine -->
-        <div class="v3r-hero-headline-wrap v3r-hero-reveal">
+        <div class="v3r-hero-headline-wrap v3r-hero-reveal" :class="{ 'is-empty-state': isHeadlineEmpty }">
           <div class="v3r-hero-logo-box">
             <img :src="logoUrl" alt="V3RCHAT Sovereign Emblem" class="v3r-hero-logo" />
             <div class="v3r-hero-logo-glow" aria-hidden="true" />
           </div>
           <div class="v3r-hero-title-group">
             <h1 class="v3r-hero-title">
-              <span class="v3r-typewriter-line">{{ displayedLine1 }}</span><br />
-              <span class="v3r-title-gradient v3r-typewriter-line">{{ displayedLine2 }}</span>
-              <span class="v3r-cursor" :class="{ 'is-blinking': isCursorBlinking }">|</span>
+              <span class="sr-only">Sovereign Messaging. Zero-Trace Control.</span>
+              <span class="v3r-typewriter-line">{{ displayedLine1 }}</span>
+              <span v-if="activeLine === 1 && !isHeadlineEmpty" class="v3r-cursor" :class="{ 'is-blinking': isCursorBlinking }">|</span>
+              <template v-if="activeLine === 2 || displayedLine2.length > 0">
+                <br />
+                <span class="v3r-title-gradient v3r-typewriter-line">{{ displayedLine2 }}</span>
+                <span v-if="activeLine === 2" class="v3r-cursor" :class="{ 'is-blinking': isCursorBlinking }">|</span>
+              </template>
             </h1>
           </div>
         </div>
 
         <p class="v3r-hero-subtitle v3r-hero-reveal">
           A syndicate-grade sovereign communications platform. Shielded by asynchronous Reverb WebSockets,
-          free from phone number tracking, and enclosed within a high-precision <em>Liquid Glass</em> HUD interface.
+          free from phone number tracking, and enclosed within a high-precision tactical HUD interface.
         </p>
 
         <div class="v3r-hero-actions v3r-hero-reveal">
@@ -443,7 +475,7 @@ onUnmounted(() => {
           </a>
         </div>
 
-        <!-- Hero Visual Mockup: Tactical Liquid Glass Terminal -->
+        <!-- Hero Visual Mockup: Tactical Specular Terminal -->
         <div
           class="v3r-hero-mockup v3r-hero-reveal"
           :style="{
@@ -480,15 +512,17 @@ onUnmounted(() => {
 
               <div class="v3r-mockup-channel-header">
                 <div class="v3r-channel-avatar">
-                  <span>DS</span>
+                  <img :src="donAvatarUrl" alt="" class="v3r-avatar-img" />
                   <span class="v3r-online-dot" />
                 </div>
                 <div class="v3r-channel-info">
                   <div class="v3r-channel-name">
-                    <span>Don Salvatore • Capo Console</span>
+                    <span>Don Salvatore</span>
+                    <span class="author-sub">• Capo Console</span>
                   </div>
                   <div class="v3r-channel-sub">
-                    <span>Online</span>
+                    <span class="v3r-status-ping" />
+                    <span>online</span>
                   </div>
                 </div>
               </div>
@@ -501,24 +535,26 @@ onUnmounted(() => {
               <!-- Message 1: Incoming (Don Salvatore) -->
               <div class="v3r-mock-msg-row incoming">
                 <div class="v3r-mock-avatar">
-                  <span>DS</span>
+                  <img :src="donAvatarUrl" alt="" class="v3r-avatar-img" />
                   <i class="avatar-status" />
                 </div>
                 <div class="v3r-mock-bubble incoming">
                   <div class="v3r-mock-author">
-                    <span class="author-name">Don Salvatore • Capo Console</span>
+                    <span class="author-name">Don Salvatore <span class="author-sub">• Capo Console</span></span>
                   </div>
                   <p class="v3r-msg-content">
-                    Tonight's operation must remain sterile. Route all strategic communications exclusively through this private V3RCHAT node.
+                  Tonight's operation must remain sterile. Route all strategic communications exclusively through this private V3RCHAT node.
                   </p>
+                  <div class="v3r-mock-meta">
+                    <span class="v3r-meta-time">23:42</span>
+                  </div>
                 </div>
               </div>
 
               <!-- Message 2: Outgoing (Operator / You) -->
               <div class="v3r-mock-msg-row outgoing">
                 <div class="v3r-mock-bubble outgoing">
-                  <div class="v3r-mock-author">
-                    <span class="v3r-msg-hash">0x3C8E</span>
+                  <div class="v3r-mock-author outgoing">
                     <span class="author-name">Operator (You)</span>
                   </div>
                   <p class="v3r-msg-content">
@@ -534,16 +570,19 @@ onUnmounted(() => {
               <!-- Message 3: Incoming (Raven Node) -->
               <div class="v3r-mock-msg-row incoming">
                 <div class="v3r-mock-avatar">
-                  <span>RN</span>
+                  <img :src="ravenAvatarUrl" alt="" class="v3r-avatar-img" />
                   <i class="avatar-status" />
                 </div>
                 <div class="v3r-mock-bubble incoming">
                   <div class="v3r-mock-author">
-                    <span class="author-name">Raven Node • Intel Division</span>
+                    <span class="author-name">Raven Node <span class="author-sub">• Intel Division</span></span>
                   </div>
                   <p class="v3r-msg-content">
                     Group enclave locked down. No phone numbers, IP traces, or central metadata exposed to external networks.
                   </p>
+                  <div class="v3r-mock-meta">
+                    <span class="v3r-meta-time">23:45</span>
+                  </div>
                 </div>
               </div>
 
@@ -554,8 +593,7 @@ onUnmounted(() => {
                 class="v3r-mock-msg-row outgoing v3r-live-msg-enter"
               >
                 <div class="v3r-mock-bubble outgoing">
-                  <div class="v3r-mock-author">
-                    <span class="v3r-msg-hash">{{ item.hash }}</span>
+                  <div class="v3r-mock-author outgoing">
                     <span class="author-name">{{ item.author }}</span>
                   </div>
 
@@ -596,7 +634,7 @@ onUnmounted(() => {
                 </div>
               </div>
 
-              <!-- Mockup Bottom Bar: Real Liquid Glass Floating Pill Composer (Transparent Flow) -->
+              <!-- Mockup Bottom Bar: Specular Floating Pill Composer (Transparent Flow) -->
               <div class="v3r-mockup-composer-area">
                 <form class="v3r-floating-composer-pill liquid-glass-composer" @submit.prevent="triggerMockDispatch">
                   <span class="liquid-glass-refraction-fringe" aria-hidden="true" />
@@ -609,7 +647,7 @@ onUnmounted(() => {
                   <button
                     type="button"
                     class="v3r-composer-icon-btn"
-                    title="Attach secure payload"
+                    title="Attach file"
                     aria-label="Attach file"
                     @click="triggerMockAttachment"
                   >
@@ -618,27 +656,21 @@ onUnmounted(() => {
                     </svg>
                   </button>
 
-                  <!-- Tactical CMD Prefix -->
-                  <span class="v3r-composer-cmd-prefix">CMD //</span>
-
                   <!-- Floating Input Field -->
                   <input
                     v-model="customDispatchInput"
                     type="text"
                     class="v3r-composer-input-field"
                     placeholder="Transmit secure dispatch... (Press Enter or Send)"
-                    aria-label="Simulate encrypted dispatch"
+                    aria-label="Simulate dispatch"
                   />
-
-                  <!-- E2EE Pill Tag -->
-                  <span class="v3r-composer-e2ee-tag">E2EE</span>
 
                   <!-- Dynamic Action Button: Send vs VN / Mic Button -->
                   <button
                     v-if="customDispatchInput.trim()"
                     type="submit"
                     class="v3r-composer-action-btn send-mode"
-                    title="Transmit Encrypted Dispatch"
+                    title="Transmit Dispatch"
                     aria-label="Send message"
                   >
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
@@ -650,7 +682,7 @@ onUnmounted(() => {
                     v-else
                     type="button"
                     class="v3r-composer-action-btn mic-mode"
-                    title="Transmit Encrypted Voice Note (VN)"
+                    title="Transmit Voice Note (VN)"
                     aria-label="Record voice note"
                     @click="triggerVoiceDispatch"
                   >
@@ -762,8 +794,8 @@ onUnmounted(() => {
                     Generic, high-glare light layouts optimized for ad consumption and high eye fatigue
                   </td>
                   <td class="val-v3r">
-                    <span class="badge-v3r">Liquid Glass HUD</span>
-                    <span class="v3r-val-text">Deep-void monochrome interface with specular optical glass refractions</span>
+                    <span class="badge-v3r">Tactical Specular HUD</span>
+                    <span class="v3r-val-text">Deep-void monochrome interface with precision optical refractions</span>
                   </td>
                 </tr>
               </tbody>
@@ -888,9 +920,9 @@ onUnmounted(() => {
               </div>
               <div class="v3r-feature-num">03 // OPTICS</div>
             </div>
-            <h3 class="v3r-feature-title">Liquid Glass HUD</h3>
+            <h3 class="v3r-feature-title">Specular Tactical HUD</h3>
             <p class="v3r-feature-desc">
-              Optical glass refractions with real-time specular highlights responding to cursor dynamics.
+              Precision optical refractions with real-time specular highlights responding to cursor dynamics.
               Tested monochrome aesthetics designed for sustained focus.
             </p>
             <div class="v3r-card-telemetry">
@@ -1007,7 +1039,7 @@ onUnmounted(() => {
 <style scoped>
 /* ==========================================================================
    V3RCHAT SOVEREIGN SYNDICATE LANDING PAGE STYLES (COMPETITION EDITION)
-   Deep Obsidian #000000, Liquid Glass Specular HUD, 3D Perspective Optics
+   Deep Obsidian #000000, Specular HUD, 3D Perspective Optics
    ========================================================================== */
 
 .v3rchat-landing-root {
@@ -1378,6 +1410,8 @@ onUnmounted(() => {
   gap: 1.75rem;
   margin: 0 auto 1.5rem;
   max-width: 980px;
+  position: relative;
+  transition: gap 0.45s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .v3r-hero-logo-box {
@@ -1386,16 +1420,17 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: transform 0.45s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .v3r-hero-logo {
-  width: 5.5rem;
-  height: 5.5rem;
+  width: 8.5rem;
+  height: 8.5rem;
   object-fit: contain;
   position: relative;
   z-index: 2;
   filter: drop-shadow(0 0 24px rgba(255, 255, 255, 0.22)) drop-shadow(0 12px 28px rgba(0, 0, 0, 0.85));
-  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.45s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .v3r-hero-logo:hover {
@@ -1414,6 +1449,36 @@ onUnmounted(() => {
 
 .v3r-hero-title-group {
   text-align: left;
+  transition: opacity 0.3s ease, max-width 0.45s cubic-bezier(0.16, 1, 0.3, 1), transform 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* When headline is completely erased, logo is centered in the middle */
+.v3r-hero-headline-wrap.is-empty-state {
+  gap: 0;
+}
+
+.v3r-hero-headline-wrap.is-empty-state .v3r-hero-title-group {
+  max-width: 0;
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
+  transform: translateX(10px);
+}
+
+.v3r-hero-headline-wrap.is-empty-state .v3r-hero-logo {
+  transform: scale(1.15);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
 }
 
 .v3r-hero-title {
@@ -1757,6 +1822,14 @@ onUnmounted(() => {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
 }
 
+.v3r-avatar-img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+}
+
 .v3r-online-dot {
   position: absolute;
   bottom: 0;
@@ -1767,6 +1840,7 @@ onUnmounted(() => {
   background: #10b981;
   border: 1px solid #000000;
   box-shadow: 0 0 4px #10b981;
+  z-index: 2;
 }
 
 .v3r-channel-info {
@@ -1778,14 +1852,21 @@ onUnmounted(() => {
 .v3r-channel-name {
   display: flex;
   align-items: center;
-  gap: 0.45rem;
-  font-size: 0.775rem;
+  gap: 0.35rem;
+  font-size: 0.8125rem;
   font-weight: 600;
   color: #ffffff;
   letter-spacing: -0.01em;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  font-family: var(--chatify-font-family, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif);
+}
+
+.v3r-channel-name .author-sub {
+  color: #a1a1aa;
+  font-size: 0.72rem;
+  font-weight: 400;
 }
 
 .v3r-badge-enc {
@@ -1925,6 +2006,7 @@ onUnmounted(() => {
   border-radius: 50%;
   background: #10b981;
   border: 1px solid #000000;
+  z-index: 2;
 }
 
 /* Chat Bubbles: Exact WhatsApp / Chatify Shapes */
@@ -1936,6 +2018,7 @@ onUnmounted(() => {
   line-height: 1.45;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
   transition: transform 0.18s ease;
+  font-family: var(--chatify-font-family, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif);
 }
 
 .v3r-mock-bubble:hover {
@@ -1959,41 +2042,60 @@ onUnmounted(() => {
     inset 0 1px 0 rgba(255, 255, 255, 0.12);
 }
 
+/* Authentic Chatify Sender Name Typography */
 .v3r-mock-author {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.65rem;
-  font-size: 0.6875rem;
-  font-weight: 600;
-  color: #a1a1aa;
   margin-bottom: 0.25rem;
+  line-height: 1.25;
 }
 
-.v3r-mock-bubble.outgoing .v3r-mock-author {
-  color: #e4e4e7;
-}
-
-.author-name {
+.v3r-mock-bubble.incoming .author-name {
+  font-family: var(--chatify-font-family, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif);
+  font-size: 0.75rem; /* 12px exact Chatify text-xs */
   font-weight: 600;
+  color: #e4e4e7;
+  letter-spacing: -0.01em;
+}
+
+.author-sub {
+  font-family: var(--chatify-font-family, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif);
+  font-size: 0.72rem;
+  font-weight: 400;
+  color: #a1a1aa;
+}
+
+.v3r-mock-bubble.outgoing .author-name {
+  font-family: var(--chatify-font-family, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif);
+  font-size: 0.75rem; /* 12px exact Chatify text-xs */
+  font-weight: 600;
+  color: #e4e4e7;
+  letter-spacing: -0.01em;
 }
 
 .v3r-msg-hash {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 0.58rem;
+  font-size: 0.6rem;
+  font-weight: 600;
   color: #71717a;
   background: rgba(255, 255, 255, 0.05);
-  padding: 0.05rem 0.35rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 0.06rem 0.35rem;
   border-radius: 4px;
+  flex-shrink: 0;
+  margin-left: auto;
 }
 
 .v3r-msg-content {
   margin: 0;
-  font-size: 0.84rem;
+  font-size: 0.875rem; /* 14px exact Chatify text-sm / body */
   line-height: 1.45;
-  color: #f4f4f5;
+  color: #ffffff;
   white-space: pre-wrap;
   word-break: break-word;
+  font-weight: 400;
 }
 
 .v3r-mock-meta {
@@ -2092,7 +2194,7 @@ onUnmounted(() => {
   flex-shrink: 0;
 }
 
-/* Floating Composer: Real Liquid Glass Floating Pill (Transparent Backing) */
+/* Floating Composer: Specular Floating Pill (Transparent Backing) */
 .v3r-mockup-composer-area {
   position: relative;
   z-index: 3;
@@ -2795,8 +2897,12 @@ onUnmounted(() => {
     width: calc(100% - 1.25rem);
   }
 
-  .v3r-mock-msg {
-    max-width: 95%;
+  .v3r-mock-msg-row {
+    max-width: 90%;
+  }
+
+  .v3r-features-grid {
+    grid-template-columns: 1fr;
   }
 
   .v3r-system-status {
@@ -2810,6 +2916,430 @@ onUnmounted(() => {
   .v3r-badge-divider,
   .v3r-badge-cipher {
     display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  /* Navigation */
+  .v3r-nav-bar {
+    top: 0.35rem;
+    width: calc(100% - 0.75rem);
+    padding: 0.35rem 0.65rem;
+  }
+
+  .v3r-logo-badge {
+    width: 1.85rem;
+    height: 1.85rem;
+  }
+
+  .v3r-brand-name {
+    font-size: 0.875rem;
+  }
+
+  .v3r-nav-actions .v3r-btn-ghost,
+  .v3r-nav-actions .v3r-btn-primary {
+    padding: 0.35rem 0.65rem;
+    font-size: 0.75rem;
+  }
+
+  /* Hero Section */
+  .v3r-hero-section {
+    padding: 2.25rem 0.5rem 1.5rem;
+  }
+
+  .v3r-hero-headline-wrap {
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .v3r-hero-logo {
+    width: 3.25rem;
+    height: 3.25rem;
+  }
+
+  .v3r-hero-title {
+    font-size: clamp(1.4rem, 5.8vw, 1.95rem);
+    line-height: 1.15;
+    min-height: auto;
+    letter-spacing: -0.02em;
+  }
+
+  .v3r-hero-subtitle {
+    font-size: 0.8125rem;
+    line-height: 1.45;
+    margin: 0 0 1.25rem;
+    padding: 0 0.25rem;
+  }
+
+  .v3r-hero-actions {
+    flex-direction: column;
+    width: 100%;
+    max-width: 290px;
+    gap: 0.5rem;
+    margin: 0 auto;
+  }
+
+  .v3r-cta-primary,
+  .v3r-cta-secondary {
+    width: 100%;
+    justify-content: center;
+    padding: 0.65rem 1.15rem;
+    font-size: 0.8125rem;
+  }
+
+  /* Mockup Frame & Header */
+  .v3r-hero-mockup {
+    margin: 1.25rem auto 0;
+    width: 100%;
+  }
+
+  .v3r-mockup-frame {
+    border-radius: 0.85rem;
+  }
+
+  .v3r-mockup-header {
+    padding: 0.5rem 0.65rem;
+    gap: 0.5rem;
+  }
+
+  .v3r-window-controls {
+    gap: 0.3rem;
+  }
+
+  .v3r-window-controls .dot {
+    width: 7px;
+    height: 7px;
+  }
+
+  .v3r-channel-avatar {
+    width: 1.85rem;
+    height: 1.85rem;
+  }
+
+  .v3r-channel-name {
+    font-size: 0.75rem;
+  }
+
+  .v3r-channel-name .author-sub {
+    font-size: 0.65rem;
+  }
+
+  .v3r-channel-sub {
+    font-size: 0.58rem;
+    gap: 0.25rem;
+  }
+
+  .v3r-status-ping {
+    width: 4px;
+    height: 4px;
+  }
+
+  /* Mockup Chat Body & Bubbles */
+  .v3r-mockup-body {
+    padding: 0.65rem 0.55rem 0.45rem;
+    min-height: 270px;
+    gap: 0.6rem;
+  }
+
+  .v3r-mock-msg-row {
+    max-width: 95%;
+    gap: 0.45rem;
+  }
+
+  .v3r-mock-avatar {
+    width: 1.65rem;
+    height: 1.65rem;
+    font-size: 0.55rem;
+  }
+
+  .avatar-status {
+    width: 4px;
+    height: 4px;
+  }
+
+  .v3r-mock-bubble {
+    padding: 0.4rem 0.65rem 0.35rem;
+    border-radius: 0.75rem;
+    font-size: 0.75rem;
+    line-height: 1.38;
+  }
+
+  .v3r-mock-author {
+    margin-bottom: 0.15rem;
+  }
+
+  .v3r-mock-bubble.incoming .author-name,
+  .v3r-mock-bubble.outgoing .author-name {
+    font-size: 0.6875rem;
+  }
+
+  .author-sub {
+    font-size: 0.625rem;
+  }
+
+  .v3r-msg-content {
+    font-size: 0.75rem;
+    line-height: 1.38;
+  }
+
+  .v3r-mock-meta {
+    margin-top: 0.15rem;
+    font-size: 0.55rem;
+  }
+
+  .v3r-meta-time {
+    font-size: 0.55rem;
+  }
+
+  .v3r-double-ticks {
+    font-size: 0.65rem;
+  }
+
+  /* Composer */
+  .v3r-mockup-composer-area {
+    padding: 0.45rem 0 0.15rem;
+  }
+
+  .v3r-floating-composer-pill {
+    min-height: 2.35rem;
+    padding: 0.18rem 0.4rem;
+    gap: 0.25rem;
+  }
+
+  .v3r-composer-icon-btn,
+  .v3r-composer-action-btn {
+    width: 1.85rem;
+    height: 1.85rem;
+  }
+
+  .v3r-composer-icon-btn svg,
+  .v3r-composer-action-btn svg {
+    width: 14px !important;
+    height: 14px !important;
+    min-width: 14px !important;
+    min-height: 14px !important;
+    max-width: 14px !important;
+    max-height: 14px !important;
+  }
+
+  .v3r-composer-input-field {
+    font-size: 0.72rem;
+    padding: 0.25rem 0.35rem;
+  }
+
+  /* Sections */
+  .v3r-section {
+    padding: 2.5rem 0;
+  }
+
+  .v3r-section-header {
+    margin-bottom: 1.25rem;
+  }
+
+  .v3r-section-badge {
+    font-size: 0.58rem;
+    padding: 0.15rem 0.5rem;
+  }
+
+  .v3r-section-title {
+    font-size: clamp(1.2rem, 4.5vw, 1.45rem);
+    line-height: 1.2;
+  }
+
+  .v3r-section-subtitle {
+    font-size: 0.78rem;
+    line-height: 1.4;
+    padding: 0 0.5rem;
+  }
+
+  /* Comparison Card & Table */
+  .v3r-comparison-card {
+    border-radius: 0.75rem;
+  }
+
+  .v3r-compare-table {
+    min-width: 520px;
+  }
+
+  .v3r-compare-table th,
+  .v3r-compare-table td {
+    padding: 0.5rem 0.55rem;
+    font-size: 0.7rem;
+  }
+
+  .feature-name {
+    font-size: 0.7rem;
+  }
+
+  .val-standard,
+  .v3r-val-text {
+    font-size: 0.68rem;
+    line-height: 1.35;
+  }
+
+  .badge-v3r {
+    font-size: 0.55rem;
+    padding: 0.08rem 0.3rem;
+  }
+
+  /* Feature Cards */
+  .v3r-features-grid {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+
+  .v3r-feature-card {
+    padding: 1rem 0.85rem;
+    border-radius: 0.75rem;
+  }
+
+  .v3r-feature-icon-box {
+    width: 2.15rem;
+    height: 2.15rem;
+  }
+
+  .v3r-feature-svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .v3r-feature-num {
+    font-size: 0.58rem;
+  }
+
+  .v3r-feature-title {
+    font-size: 0.92rem;
+    margin: 0.55rem 0 0.3rem;
+  }
+
+  .v3r-feature-desc {
+    font-size: 0.75rem;
+    line-height: 1.4;
+  }
+
+  .v3r-card-telemetry {
+    margin-top: 0.65rem;
+    padding-top: 0.45rem;
+    font-size: 0.58rem;
+  }
+
+  /* Manifesto */
+  .v3r-manifesto-box {
+    padding: 1.25rem 0.85rem;
+    border-radius: 0.75rem;
+  }
+
+  .v3r-quote-icon {
+    font-size: 2.25rem;
+    line-height: 1;
+    margin-bottom: 0.35rem;
+  }
+
+  .v3r-manifesto-quote {
+    font-size: 0.8rem;
+    line-height: 1.45;
+  }
+
+  .v3r-manifesto-author {
+    margin-top: 0.75rem;
+    font-size: 0.68rem;
+  }
+
+  .v3r-manifesto-author .author-role {
+    font-size: 0.58rem;
+  }
+
+  /* CTA Banner */
+  .v3r-cta-banner {
+    padding: 2.25rem 0;
+  }
+
+  .v3r-cta-card {
+    padding: 1.5rem 0.85rem;
+    border-radius: 0.75rem;
+  }
+
+  .v3r-cta-title {
+    font-size: 1.2rem;
+    line-height: 1.25;
+  }
+
+  .v3r-cta-subtitle {
+    font-size: 0.78rem;
+    line-height: 1.4;
+    margin-bottom: 1.15rem;
+  }
+
+  .v3r-cta-buttons {
+    flex-direction: column;
+    width: 100%;
+    max-width: 280px;
+    margin: 0 auto;
+    gap: 0.5rem;
+  }
+
+  /* Footer */
+  .v3r-footer {
+    padding: 1.75rem 0 1.25rem;
+  }
+
+  .v3r-footer-inner {
+    flex-direction: column;
+    text-align: center;
+    gap: 0.85rem;
+  }
+
+  .v3r-footer-brand {
+    flex-direction: column;
+    align-items: center;
+    gap: 0.35rem;
+  }
+
+  .brand-text {
+    font-size: 0.85rem;
+  }
+
+  .brand-sub {
+    font-size: 0.55rem;
+  }
+
+  .v3r-footer-links {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.75rem;
+    font-size: 0.75rem;
+  }
+
+  .v3r-footer-status {
+    font-size: 0.58rem;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .v3r-hero-title {
+    font-size: clamp(1.25rem, 5.6vw, 1.65rem);
+  }
+
+  .v3r-hero-subtitle {
+    font-size: 0.78rem;
+    line-height: 1.42;
+  }
+
+  .v3r-mock-bubble {
+    padding: 0.35rem 0.55rem 0.3rem;
+  }
+
+  .v3r-msg-content {
+    font-size: 0.72rem;
+  }
+
+  .v3r-composer-input-field {
+    font-size: 0.7rem;
+  }
+
+  .v3r-composer-input-field::placeholder {
+    font-size: 0.68rem;
   }
 }
 </style>

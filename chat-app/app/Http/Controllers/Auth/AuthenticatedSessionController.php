@@ -19,20 +19,7 @@ class AuthenticatedSessionController extends Controller
         $assetUrl = config('chatify.frontend.asset_url');
         $assetBase = $assetUrl ?: asset('vendor/chatify');
 
-        $devServerUrl = config('chatify.frontend.dev_server');
-        if ($devServerUrl === null && (bool) config('app.debug', false)) {
-            $configured = env('CHATIFY_DEV_SERVER', 'auto');
-            if ($configured === true || $configured === 'auto' || $configured === 'true') {
-                $socket = @fsockopen('localhost', 5173, $errno, $errstr, 0.05) ?: @fsockopen('127.0.0.1', 5173, $errno, $errstr, 0.05);
-                if ($socket) {
-                    fclose($socket);
-                    $devServerUrl = 'http://localhost:5173';
-                }
-            } elseif (is_string($configured) && $configured !== '') {
-                $devServerUrl = $configured;
-            }
-        }
-
+        $devServerUrl = \App\Support\ViteDevHelper::getDevServerUrl();
         $isViteDev = ! empty($devServerUrl);
 
         $jsPath = public_path('vendor/chatify/chatify.js');
@@ -68,13 +55,17 @@ class AuthenticatedSessionController extends Controller
     /**
      * Destroy an authenticated session.
      */
-    public function destroy(Request $request): RedirectResponse
+    public function destroy(Request $request): mixed
     {
         Auth::guard('web')->logout();
 
         $request->session()->invalidate();
 
         $request->session()->regenerateToken();
+
+        if ($request->wantsJson()) {
+            return response()->json(['status' => 'success', 'redirect' => url('/')]);
+        }
 
         return redirect('/');
     }

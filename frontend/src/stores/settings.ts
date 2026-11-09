@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
+import axios from 'axios'
 import { preferencesForServer } from '../composables/useBootConfig'
 import { chatifyT } from '../i18n/nonComponent'
 import { extractErrorMessage } from '../utils/errors'
@@ -8,6 +9,7 @@ import { useToastStore } from './toast'
 
 export const useSettingsStore = defineStore('settings', () => {
   const saving = ref(false)
+  const loggingOut = ref(false)
 
   const configStore = useConfigStore()
   const toastStore = useToastStore()
@@ -49,8 +51,40 @@ export const useSettingsStore = defineStore('settings', () => {
     }
   }
 
+  async function logout() {
+    if (loggingOut.value) {
+      return
+    }
+
+    loggingOut.value = true
+
+    try {
+      const csrfToken = configStore.boot?.csrfToken
+        || (typeof document !== 'undefined' ? (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content : '')
+        || ''
+
+      const logoutUrl = configStore.boot?.logoutUrl || '/logout'
+
+      await axios.post(logoutUrl, {}, {
+        headers: {
+          'Accept': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest',
+          'X-CSRF-TOKEN': csrfToken,
+        },
+      })
+    } catch {
+      // In case session expired or network error, proceed to redirect
+    } finally {
+      if (typeof window !== 'undefined') {
+        window.location.href = '/'
+      }
+    }
+  }
+
   return {
     saving,
+    loggingOut,
     saveAll,
+    logout,
   }
 })

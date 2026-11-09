@@ -9,6 +9,8 @@ import { getFontById } from '../../themes/fonts'
 import { getPatternById } from '../../themes/patterns'
 import { useConfigStore } from '../../stores/config'
 import { useContactsStore } from '../../stores/contacts'
+import { useSettingsStore } from '../../stores/settings'
+import { useConfirmStore } from '../../stores/confirm'
 import { useChatifyI18n } from '../../composables/useChatifyI18n'
 
 defineEmits<{
@@ -17,9 +19,12 @@ defineEmits<{
 
 const configStore = useConfigStore()
 const contactsStore = useContactsStore()
+const settingsStore = useSettingsStore()
+const confirmStore = useConfirmStore()
 const { t } = useChatifyI18n()
 const { preferences, themesEnabled, fontsEnabled, wallpaperEnabled, showOnlineStatus } = storeToRefs(configStore)
 const { blockedUsers } = storeToRefs(contactsStore)
+const { loggingOut } = storeToRefs(settingsStore)
 
 const themeLabel = computed(() => getThemeById(preferences.value.themeId).name)
 const layoutFontsLabel = computed(() => {
@@ -52,6 +57,23 @@ const blockedContactsLabel = computed(() => {
 
 async function toggleOnlineStatus() {
   await configStore.setShowOnlineStatus(!showOnlineStatus.value)
+}
+
+async function handleLogout() {
+  if (loggingOut.value) {
+    return
+  }
+
+  const confirmed = await confirmStore.confirm({
+    title: t('ui.confirm.logout.title', 'Log Out'),
+    message: t('ui.confirm.logout.message', 'Are you sure you want to end your session and log out?'),
+    confirmLabel: t('ui.confirm.logout.confirm', 'Log Out'),
+    variant: 'danger',
+  })
+
+  if (confirmed) {
+    await settingsStore.logout()
+  }
 }
 </script>
 
@@ -94,6 +116,32 @@ async function toggleOnlineStatus() {
         chevron
         @click="$emit('navigate', 'blocked')"
       />
+    </SettingsGroup>
+
+    <SettingsGroup class="chatify:mt-3">
+      <SettingsRow
+        :label="loggingOut ? t('ui.settings.logging_out', 'Logging out...') : t('ui.settings.logout', 'Log Out')"
+        danger
+        :disabled="loggingOut"
+        @click="handleLogout"
+      >
+        <template #icon>
+          <svg
+            class="chatify:h-4 chatify:w-4 chatify:shrink-0"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+            />
+          </svg>
+        </template>
+      </SettingsRow>
     </SettingsGroup>
   </div>
 </template>

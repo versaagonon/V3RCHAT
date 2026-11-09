@@ -8,6 +8,7 @@ defineProps<{
   disabled?: boolean
   toggle?: boolean
   toggleOn?: boolean
+  danger?: boolean
 }>()
 
 defineEmits<{
@@ -22,10 +23,17 @@ const { isRtl } = useChatifyDirection()
   <button
     type="button"
     class="chatify-settings-row chatify-list-item chatify:flex chatify:w-full chatify:items-center chatify:justify-between chatify:px-4 chatify:py-3 chatify:text-start chatify:transition disabled:chatify:opacity-50"
+    :class="danger ? 'chatify-settings-row-danger !chatify:text-red-500 hover:!chatify:text-red-400' : ''"
     :disabled="disabled"
     @click="toggle ? $emit('toggle') : $emit('click')"
   >
-    <span class="chatify:text-sm chatify:text-chatify-text">{{ label }}</span>
+    <span
+      class="chatify:flex chatify:items-center chatify:gap-2.5 chatify:text-sm"
+      :class="danger ? '!chatify:text-red-500 chatify:font-medium' : 'chatify:text-chatify-text'"
+    >
+      <slot name="icon" />
+      <span>{{ label }}</span>
+    </span>
     <span class="chatify:flex chatify:items-center chatify:gap-2">
       <span v-if="value && !toggle" class="chatify:text-xs chatify:text-chatify-muted">{{ value }}</span>
       <span

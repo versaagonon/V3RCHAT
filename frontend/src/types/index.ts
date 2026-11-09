@@ -210,6 +210,7 @@ export interface BootConfig {
   authMode?: 'login' | 'register' | 'landing' | null
   loginUrl?: string
   registerUrl?: string
+  logoutUrl?: string
   apiBase: string
   broadcastAuthUrl: string
   csrfToken: string

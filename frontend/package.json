@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vue-tsc --noEmit && vite build",
+    "build": "vue-tsc --noEmit && vite build && node -e \"const fs=require('fs'),p=require('path');['chatify.js','chatify.css'].forEach(f=>{const s=p.resolve('../dist',f),d=p.resolve('../chat-app/public/vendor/chatify',f);if(fs.existsSync(s))fs.copyFileSync(s,d);});\"",
     "test": "vitest run",
     "test:watch": "vitest"
   },

@@ -27,6 +27,7 @@ export function createEcho(config: BootConfig): Echo<'pusher'> | null {
     wssPort: broadcast.wsPort,
     forceTLS: broadcast.forceTLS,
     enabledTransports: ['ws', 'wss'],
+    disableStats: true,
     authorizer: (channel: { name: string }) => ({
       authorize: (socketId: string, callback: (error: Error | null, data: unknown) => void) => {
         fetch(broadcastAuthUrl, {
