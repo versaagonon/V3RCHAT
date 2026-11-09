@@ -1,0 +1,55 @@
+{
+  "name": "munafio/chatify",
+  "version": "2.0.0",
+  "description": "A Laravel package for real-time chat with conversation-based architecture.",
+  "type": "library",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "Munaf A. Mahdi",
+      "email": "munafaqeelmahdi@gmail.com"
+    }
+  ],
+  "homepage": "https://github.com/munafio/chatify",
+  "minimum-stability": "dev",
+  "prefer-stable": true,
+  "require": {
+    "php": "^8.2",
+    "illuminate/support": "^11.0|^12.0|^13.0"
+  },
+  "require-dev": {
+    "laravel/sanctum": "^4.0",
+    "orchestra/testbench": "^10.0",
+    "phpunit/phpunit": "^11.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "Chatify\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Chatify\\Tests\\": "tests/"
+    }
+  },
+  "extra": {
+    "laravel": {
+      "providers": [
+        "Chatify\\ChatifyServiceProvider"
+      ],
+      "aliases": {
+        "Chatify": "Chatify\\Facades\\ChatifyMessenger"
+      }
+    }
+  },
+  "scripts": {
+    "test": "phpunit",
+    "test:frontend": "cd frontend && npm run test",
+    "build:frontend": "cd frontend && npm run build"
+  },
+  "config": {
+    "platform": {
+      "php": "8.2.0"
+    }
+  }
+}
