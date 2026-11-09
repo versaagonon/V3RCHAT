@@ -1448,11 +1448,13 @@ body.chatify-dark {
   will-change: transform;
 }
 
-.liquid-glass-sliding-pill.pos-chats {
+.liquid-glass-sliding-pill.pos-chats,
+.liquid-glass-sliding-pill.pos-login {
   transform: translateX(0%);
 }
 
-.liquid-glass-sliding-pill.pos-favorites {
+.liquid-glass-sliding-pill.pos-favorites,
+.liquid-glass-sliding-pill.pos-register {
   transform: translateX(100%);
 }
 

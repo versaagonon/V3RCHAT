@@ -199,12 +199,12 @@ function startTypewriter() {
   activeLine.value = 1
   isCursorBlinking.value = true
 
-  // Initial state: Start with only the logo emblem visible. Delay 5 seconds before typing begins.
+  // Initial state: Start with only the logo emblem visible. Delay 3 seconds before typing begins.
   typewriterTimer = window.setTimeout(() => {
     phase = 'typing1'
     charIdx = 0
     tick()
-  }, 5000)
+  }, 3000)
 
   function tick() {
     if (phase === 'typing1') {
@@ -255,14 +255,14 @@ function startTypewriter() {
         displayedLine1.value = displayedLine1.value.slice(0, -1)
         typewriterTimer = window.setTimeout(tick, 28)
       } else {
-        // Both lines completely erased -> hold logo alone for 5 seconds before next cycle
+        // Both lines completely erased -> hold logo alone for 3 seconds before next cycle
         phase = 'idle'
         isCursorBlinking.value = true
         typewriterTimer = window.setTimeout(() => {
           phase = 'typing1'
           charIdx = 0
           tick()
-        }, 5000)
+        }, 3000)
       }
     }
   }

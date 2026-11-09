@@ -65,6 +65,28 @@ function onCardPointerLeave() {
   cardGlareOpacity.value = '0.55'
 }
 
+// Glare coordinates for Switcher Dock
+const switcherGlareX = ref('50%')
+const switcherGlareY = ref('50%')
+const switcherGlareOpacity = ref('0.65')
+
+function onSwitcherPointerMove(event: PointerEvent) {
+  const target = event.currentTarget as HTMLElement | null
+  if (!target) return
+  const rect = target.getBoundingClientRect()
+  const x = Math.max(0, Math.min(100, ((event.clientX - rect.left) / rect.width) * 100))
+  const y = Math.max(0, Math.min(100, ((event.clientY - rect.top) / rect.height) * 100))
+  switcherGlareX.value = `${Math.round(x)}%`
+  switcherGlareY.value = `${Math.round(y)}%`
+  switcherGlareOpacity.value = '0.95'
+}
+
+function onSwitcherPointerLeave() {
+  switcherGlareX.value = '50%'
+  switcherGlareY.value = '50%'
+  switcherGlareOpacity.value = '0.65'
+}
+
 function switchMode(newMode: 'login' | 'register') {
   mode.value = newMode
   registerStep.value = 1
@@ -259,23 +281,53 @@ async function handleSubmit(event: Event) {
           <img :src="logoUrl" alt="V3RCHAT Logo" class="v3rchat-auth-logo" />
         </div>
         <h1 class="v3rchat-auth-title">{{ appName }}</h1>
-        <p class="v3rchat-auth-subtitle">Private Realtime Communications</p>
+        <p class="v3rchat-auth-subtitle">Private Communications</p>
       </div>
 
-      <!-- Segmented Pill Switcher (Sign In vs Create Account) -->
-      <div class="v3rchat-auth-switcher" role="tablist">
+      <!-- Segmented Floating Liquid Glass Switcher (Sign In vs Create Account) -->
+      <div
+        class="v3rchat-auth-switcher liquid-glass-floating-nav"
+        :style="{
+          '--glare-x': switcherGlareX,
+          '--glare-y': switcherGlareY,
+          '--glare-opacity': switcherGlareOpacity,
+        }"
+        role="tablist"
+        aria-label="Authentication mode"
+        @pointermove="onSwitcherPointerMove"
+        @pointerleave="onSwitcherPointerLeave"
+      >
+        <span class="liquid-glass-refraction-fringe" aria-hidden="true" />
+        <span class="liquid-glass-specular" aria-hidden="true" />
+        <span class="liquid-glass-nav-glare" aria-hidden="true" />
+        <span class="liquid-glass-nav-rim" aria-hidden="true" />
+
+        <!-- Single Sliding Jelly Indicator Pill (Spring Physics) -->
+        <span
+          class="liquid-glass-sliding-pill"
+          :class="mode === 'register' ? 'pos-register' : 'pos-login'"
+          aria-hidden="true"
+        >
+          <span class="sliding-pill-glow" />
+          <span class="sliding-pill-rim" />
+        </span>
+
         <button
           type="button"
-          class="v3rchat-switcher-btn"
+          class="v3rchat-switcher-btn liquid-glass-nav-tab"
           :class="{ 'v3rchat-switcher-active': mode === 'login' }"
+          role="tab"
+          :aria-selected="mode === 'login'"
           @click="switchMode('login')"
         >
           Sign In
         </button>
         <button
           type="button"
-          class="v3rchat-switcher-btn"
+          class="v3rchat-switcher-btn liquid-glass-nav-tab"
           :class="{ 'v3rchat-switcher-active': mode === 'register' }"
+          role="tab"
+          :aria-selected="mode === 'register'"
           @click="switchMode('register')"
         >
           Create Account
@@ -620,18 +672,6 @@ async function handleSubmit(event: Event) {
           </div>
         </template>
       </form>
-
-      <!-- Footer Switcher Link -->
-      <div class="v3rchat-auth-footer">
-        <template v-if="mode === 'login'">
-          <span>Don't have an account?</span>
-          <button type="button" class="v3rchat-auth-link" @click="switchMode('register')">Create an account</button>
-        </template>
-        <template v-else>
-          <span>Already have an account?</span>
-          <button type="button" class="v3rchat-auth-link" @click="switchMode('login')">Sign in</button>
-        </template>
-      </div>
     </div>
   </div>
 </template>
@@ -793,27 +833,48 @@ async function handleSubmit(event: Event) {
   margin-top: 0.25rem;
 }
 
-/* Tab Switcher */
+/* Tab Switcher (Floating Liquid Glass Pill Dock matching Sidebar Bottom Bar) */
 .v3rchat-auth-switcher {
+  position: relative;
   display: flex;
-  background: rgba(0, 0, 0, 0.45);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  align-items: center;
+  justify-content: space-between;
+  height: 2.85rem;
+  padding: 0.28rem;
   border-radius: 9999px;
-  padding: 0.25rem;
+  background: color-mix(in srgb, #09090b 60%, rgba(0, 0, 0, 0.7)) !important;
+  backdrop-filter: blur(24px) saturate(1.8) contrast(1.05);
+  -webkit-backdrop-filter: blur(24px) saturate(1.8) contrast(1.05);
+  border: 1px solid rgba(255, 255, 255, 0.16) !important;
+  box-shadow:
+    0 14px 34px -8px rgba(0, 0, 0, 0.65),
+    0 4px 18px rgba(0, 0, 0, 0.4),
+    inset 0 1.5px 1.5px 0 rgba(255, 255, 255, 0.35),
+    inset 0 -1px 1px 0 rgba(0, 0, 0, 0.5);
+  user-select: none;
+  overflow: hidden;
   margin-bottom: 1.5rem;
 }
 
 .v3rchat-switcher-btn {
   flex: 1;
-  padding: 0.45rem 0.75rem;
+  height: 100%;
+  position: relative;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 0.75rem;
+  margin: 0;
   border-radius: 9999px;
   font-size: 0.8125rem;
   font-weight: 500;
   color: #a1a1aa;
-  background: transparent;
-  border: 1px solid transparent;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
   cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: color 0.25s cubic-bezier(0.16, 1, 0.3, 1), font-weight 0.2s ease, text-shadow 0.25s ease;
 }
 
 .v3rchat-switcher-btn:hover {
@@ -821,13 +882,17 @@ async function handleSubmit(event: Event) {
 }
 
 .v3rchat-switcher-active {
-  color: #ffffff;
-  background: rgba(255, 255, 255, 0.14);
-  border-color: rgba(255, 255, 255, 0.25);
-  box-shadow:
-    inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.45),
-    0 2px 8px rgba(0, 0, 0, 0.3);
+  color: #ffffff !important;
   font-weight: 600;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.55);
+}
+
+.liquid-glass-sliding-pill.pos-login {
+  transform: translateX(0%);
+}
+
+.liquid-glass-sliding-pill.pos-register {
+  transform: translateX(100%);
 }
 
 /* Alert */
