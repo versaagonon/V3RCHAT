@@ -146,12 +146,23 @@ export const useMessagesStore = defineStore('messages', () => {
     const bucket = ensureBucket(conversationId)
     const userId = String(serverMessage.relationships.sender.data.id)
 
-    const pendingIndex = bucket.items.findIndex(
+    let pendingIndex = bucket.items.findIndex(
       (item) =>
         isPendingMessageId(item.id) &&
         item.attributes.local_status === 'sending' &&
-        String(item.relationships.sender.data.id) === userId,
+        String(item.relationships.sender.data.id) === userId &&
+        serverMessage.attributes.body !== null &&
+        item.attributes.body === serverMessage.attributes.body,
     )
+
+    if (pendingIndex < 0) {
+      pendingIndex = bucket.items.findIndex(
+        (item) =>
+          isPendingMessageId(item.id) &&
+          item.attributes.local_status === 'sending' &&
+          String(item.relationships.sender.data.id) === userId,
+      )
+    }
 
     if (pendingIndex >= 0) {
       cleanupOutboundDraft(bucket.items[pendingIndex].id)
@@ -211,6 +222,7 @@ export const useMessagesStore = defineStore('messages', () => {
       cleanupOutboundDraft(tempId)
       removeMessage(draft.conversationId, tempId)
       upsertMessage(draft.conversationId, data.data)
+      conversationsStore.updateLastMessage(draft.conversationId, data.data)
       pendingScrollToBottom.value = true
       playChatSound('outgoingMessage')
     } catch (error) {
@@ -240,6 +252,7 @@ export const useMessagesStore = defineStore('messages', () => {
     }
 
     upsertMessage(payload.conversationId, message)
+    conversationsStore.updateLastMessage(payload.conversationId, message)
     pendingScrollToBottom.value = true
     replyToMessage.value = null
 
@@ -430,10 +443,12 @@ export const useMessagesStore = defineStore('messages', () => {
 
     if (userId && String(senderId) === String(userId)) {
       replacePendingWithServer(conversationId, payload)
+      conversationsStore.updateLastMessage(conversationId, payload)
       return
     }
 
     upsertMessage(conversationId, payload)
+    conversationsStore.updateLastMessage(conversationId, payload)
   }
 
   function handleMessageUpdated(payload: ChatifyMessage) {

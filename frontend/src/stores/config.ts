@@ -278,6 +278,82 @@ export const useConfigStore = defineStore('config', () => {
     }
   }
 
+  async function updateProfile(payload: {
+    name?: string
+    username?: string | null
+    email?: string
+    current_password?: string
+    avatar?: File | null
+    reset_avatar?: boolean
+  }): Promise<{ success: boolean; errors?: Record<string, string[]> }> {
+    if (!api.value || !boot.value?.user) {
+      return { success: false, errors: { general: ['Active session required'] } }
+    }
+
+    const toastStore = useToastStore()
+
+    try {
+      let res
+      if (payload.avatar) {
+        const form = new FormData()
+        if (payload.name !== undefined) form.append('name', payload.name)
+        if (payload.username !== undefined) form.append('username', payload.username ?? '')
+        if (payload.email !== undefined) form.append('email', payload.email)
+        if (payload.current_password) form.append('current_password', payload.current_password)
+        form.append('avatar', payload.avatar)
+        res = await api.value.updateProfile(form)
+      } else {
+        res = await api.value.updateProfile({
+          name: payload.name,
+          username: payload.username,
+          email: payload.email,
+          current_password: payload.current_password,
+          reset_avatar: payload.reset_avatar,
+        })
+      }
+
+      if (res.data?.data) {
+        boot.value.user = res.data.data
+        if (res.data.data.attributes.avatar) {
+          savedAvatarUrl.value = cacheBustUrl(res.data.data.attributes.avatar)
+        }
+      }
+
+      toastStore.show({
+        message: chatifyT('ui.settings.profile_updated'),
+        icon: 'success',
+        placement: 'bottom',
+      })
+
+      return { success: true }
+    } catch (err: any) {
+      const errors = err?.response?.data?.errors as Record<string, string[]> | undefined
+      const generalMessage = err?.response?.data?.message || extractErrorMessage(err, 'Failed to update profile.')
+      return {
+        success: false,
+        errors: errors ?? { general: [generalMessage] },
+      }
+    }
+  }
+
+  async function equipAvatarBorder(borderId: number | null) {
+    if (!api.value) {
+      return { success: false, message: 'API not available' }
+    }
+
+    try {
+      const res = await api.value.equipBorder(borderId)
+      const updatedUser = res.data.data
+      if (boot.value?.user && updatedUser) {
+        boot.value.user.attributes.avatar_border = updatedUser.attributes.avatar_border
+      }
+      return { success: true, user: updatedUser }
+    } catch (err) {
+      const message = extractErrorMessage(err, 'Failed to equip avatar border.')
+      return { success: false, message }
+    }
+  }
+
   function stageWallpaper(file: File) {
     pendingWallpaperFile.value = file
     if (pendingWallpaperPreview.value) {
@@ -379,6 +455,8 @@ export const useConfigStore = defineStore('config', () => {
     clearWallpaperImage,
     uploadAvatar,
     removeAvatar,
+    updateProfile,
+    equipAvatarBorder,
     stageWallpaper,
     resetDraft,
     restoreDraft,

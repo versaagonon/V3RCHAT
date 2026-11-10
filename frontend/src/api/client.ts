@@ -1,5 +1,6 @@
 import axios, { type AxiosInstance, type AxiosRequestConfig } from 'axios'
 import type {
+  AvatarBorder,
   BootConfig,
   ChatifyConversation,
   ChatifyMessage,
@@ -150,6 +151,19 @@ export function createChatifyApi(client: ApiClient) {
       payload: { body?: string; attachment?: File; attachments?: File[]; reply_to_message_id?: string },
       config?: AxiosRequestConfig,
     ) {
+      const hasFiles = Boolean(payload.attachment || payload.attachments?.length)
+
+      if (!hasFiles) {
+        return client.post<SingleResponse<ChatifyMessage>>(
+          `/conversations/${conversationId}/messages`,
+          {
+            body: payload.body,
+            reply_to_message_id: payload.reply_to_message_id,
+          },
+          config,
+        )
+      }
+
       const form = new FormData()
       if (payload.body) {
         form.append('body', payload.body)
@@ -191,6 +205,26 @@ export function createChatifyApi(client: ApiClient) {
       return client.get<PaginatedResponse<ChatifyUser>>('/contacts/search', {
         params: { q, ...params },
       })
+    },
+
+    getProfile() {
+      return client.get<SingleResponse<ChatifyUser>>('/profile')
+    },
+
+    updateProfile(payload: FormData | {
+      name?: string
+      username?: string | null
+      email?: string
+      current_password?: string
+      reset_avatar?: boolean
+    }, config?: AxiosRequestConfig) {
+      if (payload instanceof FormData) {
+        return client.post<SingleResponse<ChatifyUser>>('/profile', payload, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+          ...config,
+        })
+      }
+      return client.patch<SingleResponse<ChatifyUser>>('/profile', payload, config)
     },
 
     getSettings() {
@@ -269,6 +303,56 @@ export function createChatifyApi(client: ApiClient) {
 
     fetchLinkPreview(url: string) {
       return client.get<SingleResponse<LinkPreview>>('/link-preview', { params: { url } })
+    },
+
+    // Borders & Admin
+    getUserBorders() {
+      return client.get<{
+        data: {
+          is_admin: boolean
+          active_border_id: number | null
+          available_borders: AvatarBorder[]
+        }
+      }>('/borders')
+    },
+
+    equipBorder(borderId: number | null) {
+      return client.post<SingleResponse<ChatifyUser>>('/profile/border', { border_id: borderId })
+    },
+
+    getAdminBorders() {
+      return client.get<{ data: AvatarBorder[] }>('/admin/borders')
+    },
+
+    uploadAdminBorder(formData: FormData) {
+      return client.post<{ message: string; data: AvatarBorder }>('/admin/borders', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+    },
+
+    deleteAdminBorder(id: number) {
+      return client.delete<{ message: string }>(`/admin/borders/${id}`)
+    },
+
+    giftBorder(payload: { border_id: number; user_query: string }) {
+      return client.post<{ message: string; data: Record<string, unknown> }>('/admin/borders/gift', payload)
+    },
+
+    revokeBorderGift(payload: { border_id: number; user_id: number }) {
+      return client.delete<{ message: string }>('/admin/borders/gift', { data: payload })
+    },
+
+    searchAdminUsers(q = '') {
+      return client.get<{
+        data: Array<{
+          id: number
+          name: string
+          username: string | null
+          email: string
+          role: string
+          borders_count: number
+        }>
+      }>('/admin/users', { params: { q } })
     },
   }
 }

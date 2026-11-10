@@ -77,6 +77,14 @@ const avatarUrl = computed(() => {
   return displayUserAvatar(otherUser, defaultAvatarUrl.value) || null
 })
 
+const avatarBorderUrl = computed(() => {
+  if (isSaved.value) return null
+  if (props.conversation.attributes.conversation_type === 'group') return null
+  const otherUser = props.conversation.relationships.other_user
+  if (!otherUser) return null
+  return otherUser.attributes.avatar_border?.image_url ?? null
+})
+
 const showPresenceDot = computed(() =>
   !isSaved.value
   && otherUserId.value !== null
@@ -119,6 +127,14 @@ const showBlockedIcon = computed(() =>
       >
         {{ displayName.charAt(0).toUpperCase() }}
       </div>
+      <!-- 1:1 Animated Avatar Border Overlay -->
+      <img
+        v-if="avatarBorderUrl"
+        :src="avatarBorderUrl"
+        alt=""
+        class="chatify:pointer-events-none chatify:absolute chatify:inset-[-18%] chatify:h-[136%] chatify:w-[136%] chatify:max-w-none chatify:object-contain chatify:z-10"
+        aria-hidden="true"
+      />
       <span
         v-if="showPresenceDot"
         class="chatify-presence-dot"

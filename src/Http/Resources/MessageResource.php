@@ -20,11 +20,40 @@ class MessageResource extends JsonResource
         $read = false;
 
         if ($viewer !== null) {
-            $participant = app(ConversationService::class)->getParticipant(
-                $this->conversation,
-                (int) $viewer->getKey()
-            );
-            $read = $this->isReadByParticipant($participant);
+            $conversation = $this->relationLoaded('conversation')
+                ? $this->conversation
+                : ($this->conversation ?? $this->conversation()->with('participants')->first());
+
+            $conversationService = app(ConversationService::class);
+            $viewerId = (int) $viewer->getKey();
+            $isOwn = (int) $this->user_id === $viewerId;
+
+            if ($conversation !== null) {
+                if ($isOwn) {
+                    if ($conversation->isDirect()) {
+                        $otherParticipant = $conversation->relationLoaded('participants')
+                            ? $conversation->participants->firstWhere('user_id', '!=', $viewerId)
+                            : $conversation->participants()->where('user_id', '!=', $viewerId)->first();
+
+                        $read = $this->isReadByParticipant($otherParticipant);
+                    } elseif ($conversation->isSaved()) {
+                        $read = true;
+                    } else {
+                        $otherParticipants = $conversation->relationLoaded('participants')
+                            ? $conversation->participants->where('user_id', '!=', $viewerId)
+                            : $conversation->participants()->where('user_id', '!=', $viewerId)->get();
+
+                        $read = $otherParticipants->isNotEmpty()
+                            && $otherParticipants->every(fn ($p) => $this->isReadByParticipant($p));
+                    }
+                } else {
+                    $viewerParticipant = $conversation->relationLoaded('participants')
+                        ? $conversation->participants->firstWhere('user_id', $viewerId)
+                        : $conversationService->getParticipant($conversation, $viewerId);
+
+                    $read = $this->isReadByParticipant($viewerParticipant);
+                }
+            }
         }
 
         $attachmentService = app(AttachmentService::class);

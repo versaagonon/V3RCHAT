@@ -8,6 +8,8 @@ import SettingsThemesView from '../settings/SettingsThemesView.vue'
 import SettingsFontView from '../settings/SettingsFontView.vue'
 import SettingsWallpaperView from '../settings/SettingsWallpaperView.vue'
 import SettingsBlockedContactsView from '../settings/SettingsBlockedContactsView.vue'
+import SettingsProfileView from '../settings/SettingsProfileView.vue'
+import SettingsAdminPanelView from '../settings/SettingsAdminPanelView.vue'
 import { clonePreferences } from '../../composables/useBootConfig'
 import type { ChatifyThemePreferences } from '../../themes/types'
 import { useConfigStore } from '../../stores/config'
@@ -15,7 +17,7 @@ import { useSettingsStore } from '../../stores/settings'
 import { useUiStore } from '../../stores/ui'
 import { useChatifyI18n } from '../../composables/useChatifyI18n'
 
-type SettingsScreen = 'root' | 'themes' | 'font' | 'wallpaper' | 'blocked'
+type SettingsScreen = 'root' | 'themes' | 'font' | 'wallpaper' | 'blocked' | 'profile' | 'admin'
 
 const uiStore = useUiStore()
 const configStore = useConfigStore()
@@ -34,6 +36,8 @@ const open = computed(() => activeModal.value === 'settings')
 
 const titles = computed<Record<SettingsScreen, string>>(() => ({
   root: t('ui.settings.title'),
+  profile: t('ui.settings.profile', 'Profile'),
+  admin: 'Admin Panel',
   themes: t('ui.settings.themes'),
   font: t('ui.settings.layout_and_fonts_title', 'Layout & Fonts'),
   wallpaper: t('ui.settings.wallpaper'),
@@ -123,6 +127,8 @@ async function saveChanges() {
       <Transition :name="direction === 'forward' ? 'chatify-slide-left' : 'chatify-slide-right'" mode="out-in">
         <div :key="screen" class="chatify:min-h-0 chatify:min-w-0 chatify:w-full">
           <SettingsRootView v-if="screen === 'root'" @navigate="navigate" />
+          <SettingsProfileView v-else-if="screen === 'profile'" @saved="goBack" />
+          <SettingsAdminPanelView v-else-if="screen === 'admin'" />
           <SettingsThemesView v-else-if="screen === 'themes'" />
           <SettingsFontView v-else-if="screen === 'font'" />
           <SettingsWallpaperView v-else-if="screen === 'wallpaper'" />

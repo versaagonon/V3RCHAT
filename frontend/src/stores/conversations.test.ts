@@ -2,6 +2,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { useConversationsStore } from './conversations'
 import { useConfigStore } from './config'
+import { useUiStore } from './ui'
 import type { ChatifyConversation } from '../types'
 
 function makeConversation(id: string, updatedAt: string, unread = 0): ChatifyConversation {
@@ -51,12 +52,29 @@ describe('useConversationsStore inbox updates', () => {
     expect(store.items[0]?.attributes.unread_count).toBe(2)
   })
 
-  it('clears unread for the active conversation', () => {
+  it('clears unread for the active conversation when thread is visible', () => {
     const store = useConversationsStore()
     store.activeId = 'c1'
     store.handleInboxUpdate(makeConversation('c1', '2026-01-03T10:00:00Z', 4), 1)
 
     expect(store.items[0]?.attributes.unread_count).toBe(0)
+  })
+
+  it('preserves unread count when on mobile in sidebar view (thread hidden)', () => {
+    const store = useConversationsStore()
+    const uiStore = useUiStore()
+
+    const originalWidth = window.innerWidth
+    Object.defineProperty(window, 'innerWidth', { writable: true, configurable: true, value: 500 })
+
+    store.activeId = 'c1'
+    uiStore.showThreadOnMobile = false
+
+    store.handleInboxUpdate(makeConversation('c1', '2026-01-03T10:00:00Z', 4), 1)
+
+    expect(store.items[0]?.attributes.unread_count).toBe(4)
+
+    Object.defineProperty(window, 'innerWidth', { writable: true, configurable: true, value: originalWidth })
   })
 
   it('keeps newer local inbox state when fetchAll returns stale data', async () => {

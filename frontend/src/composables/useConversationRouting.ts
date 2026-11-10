@@ -84,17 +84,6 @@ export function useConversationRouting() {
   }
 
   function goBack() {
-    if (typeof window === 'undefined') {
-      navigateToInbox()
-      return
-    }
-
-    const hasConversationInUrl = parseConversationIdFromLocation(webBase()) !== null
-    if (hasConversationInUrl && window.history.length > 1) {
-      window.history.back()
-      return
-    }
-
     navigateToInbox(true)
   }
 

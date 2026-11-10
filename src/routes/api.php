@@ -2,19 +2,22 @@
 
 declare(strict_types=1);
 
-use Chatify\Http\Controllers\Api\GroupParticipantController;
+use Chatify\Http\Controllers\Api\AdminBorderController;
 use Chatify\Http\Controllers\Api\AttachmentController;
 use Chatify\Http\Controllers\Api\BlockController;
 use Chatify\Http\Controllers\Api\BroadcastAuthController;
 use Chatify\Http\Controllers\Api\ContactController;
-use Chatify\Http\Controllers\Api\LinkPreviewController;
 use Chatify\Http\Controllers\Api\ConversationController;
 use Chatify\Http\Controllers\Api\FavoriteController;
+use Chatify\Http\Controllers\Api\GroupParticipantController;
+use Chatify\Http\Controllers\Api\LinkPreviewController;
 use Chatify\Http\Controllers\Api\MessageController;
 use Chatify\Http\Controllers\Api\PresenceController;
 use Chatify\Http\Controllers\Api\TranslationsController;
 use Chatify\Http\Controllers\Api\TypingController;
+use Chatify\Http\Controllers\Api\UserBorderController;
 use Chatify\Http\Controllers\Api\UserController;
+use Chatify\Http\Controllers\Api\UserProfileController;
 use Chatify\Http\Controllers\Api\UserSettingsController;
 use Chatify\Http\Middleware\SetLocaleFromRequest;
 use Illuminate\Support\Facades\Route;
@@ -81,6 +84,23 @@ Route::middleware($apiMiddleware)
         Route::post('presence/offline', [PresenceController::class, 'offline']);
 
         Route::get('users/{user}', [UserController::class, 'show']);
+
+        Route::get('profile', [UserProfileController::class, 'show']);
+        Route::patch('profile', [UserProfileController::class, 'update']);
+        Route::post('profile', [UserProfileController::class, 'update'])
+            ->middleware('throttle:chatify-uploads');
+        Route::get('borders', [UserBorderController::class, 'index']);
+        Route::post('profile/border', [UserBorderController::class, 'update']);
+
+        Route::prefix('admin')->group(function () {
+            Route::get('borders', [AdminBorderController::class, 'index']);
+            Route::post('borders', [AdminBorderController::class, 'store'])
+                ->middleware('throttle:chatify-uploads');
+            Route::delete('borders/{id}', [AdminBorderController::class, 'destroy']);
+            Route::post('borders/gift', [AdminBorderController::class, 'gift']);
+            Route::delete('borders/gift', [AdminBorderController::class, 'revokeGift']);
+            Route::get('users', [AdminBorderController::class, 'users']);
+        });
 
         Route::get('settings', [UserSettingsController::class, 'show']);
         Route::post('settings/avatar', [UserSettingsController::class, 'updateAvatar'])

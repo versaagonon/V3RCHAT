@@ -18,5 +18,6 @@ const showImage = computed(() => preferences.value.wallpaper.kind === 'image')
     <div class="chatify-chat-bg-base chatify:absolute chatify:inset-0" />
     <div v-if="showPattern" class="chatify-chat-bg-pattern chatify:absolute chatify:inset-0" />
     <div v-if="showImage" class="chatify-chat-bg-image chatify:absolute chatify:inset-0" />
+    <div v-if="showImage" class="chatify-chat-bg-darkness-overlay chatify:absolute chatify:inset-0" />
   </div>
 </template>

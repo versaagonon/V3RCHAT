@@ -44,13 +44,15 @@ class ConversationInboxUpdated implements ShouldBroadcastNow
 
     public function broadcastWith(): array
     {
-        $user = ChatifyModels::userClass()::query()->find($this->userId);
+        $user = $this->conversation->participants->firstWhere('user_id', $this->userId)?->user
+            ?? ChatifyModels::userClass()::query()->find($this->userId);
 
         if ($user === null) {
             return [];
         }
 
         $conversation = $this->conversation;
+        $conversation->unread_count = $this->unreadCount;
         $conversation->setRelation(
             'messages',
             $this->lastMessage !== null ? collect([$this->lastMessage->loadMissing('sender')]) : collect()

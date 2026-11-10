@@ -15,7 +15,31 @@ class TestUser extends Authenticatable
 
     protected $table = 'users';
 
-    protected $fillable = ['name', 'email', 'password'];
+    protected $fillable = ['name', 'username', 'email', 'password', 'role'];
 
     protected $hidden = ['password', 'remember_token'];
+
+    public function borders(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(
+            \Chatify\Models\AvatarBorder::class,
+            'user_avatar_borders',
+            'user_id',
+            'border_id'
+        )->withTimestamps();
+    }
+
+    public function isAdmin(): bool
+    {
+        return ($this->role ?? 'node') === 'admin';
+    }
+
+    public function hasBorder(int|string $borderId): bool
+    {
+        if ($this->isAdmin()) {
+            return true;
+        }
+
+        return $this->borders()->where('avatar_borders.id', (int) $borderId)->exists();
+    }
 }

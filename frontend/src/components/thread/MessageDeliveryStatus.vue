@@ -14,13 +14,15 @@ const { t } = useChatifyI18n()
 <template>
   <span
     v-if="status === 'sending'"
-    class="chatify-message-status-sending"
+    class="chatify-message-status-sending chatify:inline-flex chatify:items-center chatify:opacity-65"
     :title="t('ui.thread.delivery.sending')"
     :aria-label="t('ui.thread.delivery.sending_aria')"
   >
-    <svg class="chatify:h-3.5 chatify:w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <circle cx="12" cy="12" r="9" stroke-width="2" />
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 7v5l3 2" />
+    <svg viewBox="0 0 16 11" class="chatify:h-3 chatify:w-4 chatify:text-chatify-muted" fill="none">
+      <path
+        d="M11.071 0.75L4.682 7.133 1.928 4.384 0.5 5.812l4.182 4.182 7.182-7.182L11.071 0.75Z"
+        fill="currentColor"
+      />
     </svg>
   </span>
   <MessageStatusTicks v-else-if="isOwn && status !== 'failed'" :read="read" />

@@ -127,42 +127,44 @@ defineExpose({ close, toggle })
       </svg>
     </button>
 
-    <div
-      v-if="open"
-      class="chatify-sticker-picker chatify-composer-popover"
-    >
-      <div class="chatify-sticker-picker-search">
-        <SearchField
-          v-model="query"
-          :placeholder="t('ui.thread.composer.search_stickers')"
-          :clear-label="t('ui.thread.search.clear')"
-          input-class="chatify-sticker-picker-input chatify:py-2 chatify:text-sm chatify:text-chatify-text"
-        />
-      </div>
-
-      <div class="chatify-sticker-picker-scroll">
-        <div v-if="loading" class="chatify-sticker-picker-grid">
-          <div
-            v-for="(_, index) in skeletonTiles"
-            :key="index"
-            class="chatify-sticker-picker-skeleton chatify-attachment-skeleton"
+    <Transition name="chatify-composer-popover">
+      <div
+        v-if="open"
+        class="chatify-sticker-picker chatify-composer-popover"
+      >
+        <div class="chatify-sticker-picker-search">
+          <SearchField
+            v-model="query"
+            :placeholder="t('ui.thread.composer.search_stickers')"
+            :clear-label="t('ui.thread.search.clear')"
+            input-class="chatify-sticker-picker-input chatify:py-2 chatify:text-sm chatify:text-chatify-text"
           />
         </div>
-        <div v-else-if="error" class="chatify-sticker-picker-state">{{ error }}</div>
-        <div v-else-if="stickers.length === 0" class="chatify-sticker-picker-state">{{ $t('ui.thread.composer.sticker_no_results') }}</div>
-        <div v-else class="chatify-sticker-picker-grid">
-          <button
-            v-for="sticker in stickers"
-            :key="sticker.id"
-            type="button"
-            class="chatify-sticker-picker-item"
-            :disabled="selectingId === sticker.id"
-            @click="selectSticker(sticker)"
-          >
-            <img :src="sticker.previewUrl" :alt="sticker.title" loading="lazy" />
-          </button>
+
+        <div class="chatify-sticker-picker-scroll">
+          <div v-if="loading" class="chatify-sticker-picker-grid">
+            <div
+              v-for="(_, index) in skeletonTiles"
+              :key="index"
+              class="chatify-sticker-picker-skeleton chatify-attachment-skeleton"
+            />
+          </div>
+          <div v-else-if="error" class="chatify-sticker-picker-state">{{ error }}</div>
+          <div v-else-if="stickers.length === 0" class="chatify-sticker-picker-state">{{ $t('ui.thread.composer.sticker_no_results') }}</div>
+          <div v-else class="chatify-sticker-picker-grid">
+            <button
+              v-for="sticker in stickers"
+              :key="sticker.id"
+              type="button"
+              class="chatify-sticker-picker-item"
+              :disabled="selectingId === sticker.id"
+              @click="selectSticker(sticker)"
+            >
+              <img :src="sticker.previewUrl" :alt="sticker.title" loading="lazy" />
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+    </Transition>
   </div>
 </template>

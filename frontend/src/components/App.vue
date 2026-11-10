@@ -18,6 +18,7 @@ import { useConversationRouting } from '../composables/useConversationRouting'
 import { createTypingSoundPlayer, useChatSounds } from '../composables/useChatSounds'
 import { CONVERSATION_ROUTING_KEY } from '../constants/dom'
 import { usePresence } from '../composables/usePresence'
+import { useBreakpoints } from '../composables/useBreakpoints'
 import { tryPlayIncomingMessageSound, resolveMessageSenderId } from '../utils/chatSounds'
 import { useConfigStore } from '../stores/config'
 import { useConnectionStore } from '../stores/connection'
@@ -55,6 +56,7 @@ const contactsStore = useContactsStore()
 const presenceStore = usePresenceStore()
 const typingStore = useTypingStore()
 const uiStore = useUiStore()
+const { isMobile } = useBreakpoints()
 
 const { sendOffline: sendPresenceOffline } = usePresence()
 
@@ -202,13 +204,18 @@ function handleInboxUpdated(payload: unknown) {
 
   conversationsStore.handleInboxUpdate(conversation, props.config.user.id)
 
+  const isThreadVisible = !isMobile.value || uiStore.showThreadOnMobile
+  const isCurrentActive = String(conversationsStore.activeId) === String(conversation.id)
+
   const lastMessage = conversation.relationships.last_message
   if (
     lastMessage
     && lastMessage.attributes.kind !== 'system'
-    && String(conversationsStore.activeId) === String(conversation.id)
+    && isCurrentActive
+    && isThreadVisible
   ) {
     messagesStore.handleMessageSent(lastMessage)
+    void conversationsStore.markRead(conversation.id)
   }
 
   playIncomingSoundForInbox(conversation)

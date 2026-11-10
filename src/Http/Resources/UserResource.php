@@ -16,11 +16,23 @@ class UserResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
+        if ($this->resource === null) {
+            return [];
+        }
+
         $settingsService = app(UserSettingsService::class);
         $settings = $settingsService->forUser($this->resource);
         $viewer = $request->user();
         $blockService = app(BlockService::class);
         $hideIdentity = $viewer !== null && ! $blockService->shouldRevealIdentity($viewer, $this->resource);
+
+        $activeBorder = $settings->activeBorder;
+        $borderData = $activeBorder ? [
+            'id' => $activeBorder->id,
+            'name' => $activeBorder->name,
+            'slug' => $activeBorder->slug,
+            'image_url' => $activeBorder->image_url,
+        ] : null;
 
         $data = [
             'type' => 'user',
@@ -30,6 +42,8 @@ class UserResource extends JsonResource
                 'avatar' => $hideIdentity
                     ? $blockService->defaultAvatarUrl()
                     : $this->avatarUrl($settings),
+                'avatar_border' => $hideIdentity ? null : $borderData,
+                'role' => $this->resource->role ?? 'node',
             ],
         ];
 
@@ -37,8 +51,14 @@ class UserResource extends JsonResource
             $data['attributes']['is_identity_hidden'] = true;
         }
 
-        if (! $hideIdentity && config('chatify.api.expose_email', false)) {
+        $isSelf = $viewer !== null && (int) $viewer->getKey() === (int) $this->resource->getKey();
+
+        if ($isSelf || (! $hideIdentity && config('chatify.api.expose_email', false))) {
             $data['attributes']['email'] = $this->resource->email ?? null;
+        }
+
+        if ($isSelf || ! $hideIdentity) {
+            $data['attributes']['username'] = $this->resource->username ?? null;
         }
 
         if ($viewer !== null) {

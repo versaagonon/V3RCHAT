@@ -37,13 +37,19 @@ final class SendMessage
         ?string $forwardedFromMessageId = null,
         ?array $prebuiltAttachmentMeta = null,
     ): Message {
-        $this->assertSenderIsParticipant($conversation, $sender);
+        $conversation->loadMissing(['participants.user']);
+        $participant = $conversation->participants->firstWhere('user_id', (int) $sender->getKey());
+
+        if ($participant === null) {
+            throw ValidationException::withMessages([
+                'conversation' => [__('chatify::chatify.errors.not_participant')],
+            ]);
+        }
 
         if ($conversation->isDirect()) {
-            $recipient = $conversation->participants()
-                ->where('user_id', '!=', $sender->getKey())
-                ->with('user')
-                ->first()?->user;
+            $recipient = $conversation->participants
+                ->firstWhere('user_id', '!=', (int) $sender->getKey())
+                ?->user;
 
             if ($recipient !== null && ! $this->recipientResolver->canMessage($sender, $recipient)) {
                 throw ValidationException::withMessages([

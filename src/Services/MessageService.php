@@ -32,7 +32,14 @@ final class MessageService
             'forwarded_from_message_id' => $data->forwardedFromMessageId,
         ]);
 
-        return $message->load(['sender', 'replyTo.sender', 'forwardedFrom.sender']);
+        $message->setRelation('conversation', $conversation);
+        $message->setRelation('sender', $sender);
+
+        if ($data->replyToMessageId !== null || $data->forwardedFromMessageId !== null) {
+            $message->load(['replyTo.sender', 'forwardedFrom.sender']);
+        }
+
+        return $message;
     }
 
     public function sendSystemMessage(

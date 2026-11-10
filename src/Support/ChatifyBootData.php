@@ -57,6 +57,7 @@ final class ChatifyBootData
                         'imageUrl' => null,
                         'blurEnabled' => false,
                         'blurAmount' => 50,
+                        'darknessAmount' => 0,
                     ],
                 ],
                 'chat_background_url' => null,

@@ -28,12 +28,18 @@ class MessageController extends Controller
     {
         $this->authorize('view', $conversation);
 
+        $conversation->loadMissing('participants');
+
         $messages = $messageService->paginate(
             $conversation,
             (int) $request->integer('per_page', 30),
             $request->string('after')->toString() ?: null,
             (int) $request->user()->getKey(),
         );
+
+        foreach ($messages as $message) {
+            $message->setRelation('conversation', $conversation);
+        }
 
         return MessageResource::collection($messages)->response();
     }
@@ -80,6 +86,8 @@ class MessageController extends Controller
             $request->input('reply_to_message_id'),
             $request->input('forwarded_from_message_id'),
         );
+
+        $message->setRelation('conversation', $conversation);
 
         return (new MessageResource($message))->response()->setStatusCode(201);
     }

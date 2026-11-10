@@ -31,6 +31,7 @@ export function defaultWallpaper(): WallpaperPreferences {
     imageUrl: null,
     blurEnabled: false,
     blurAmount: 50,
+    darknessAmount: 0,
   }
 }
 
@@ -95,6 +96,15 @@ function clampBlurAmount(value: unknown, fallback: number): number {
   return Math.min(100, Math.max(0, Math.round(amount)))
 }
 
+function clampDarknessAmount(value: unknown, fallback = 0): number {
+  const amount = typeof value === 'number' ? value : Number(value)
+  if (!Number.isFinite(amount)) {
+    return fallback
+  }
+
+  return Math.min(100, Math.max(0, Math.round(amount)))
+}
+
 export function clampFontSize(value: unknown, fallback = 14): number {
   const num = typeof value === 'number' ? value : Number(value)
   if (!Number.isFinite(num)) {
@@ -131,6 +141,12 @@ function applyWallpaperVars(preferences: ChatifyThemePreferences, patternTintCol
   const blurPx = blurActive ? `${Math.round(wallpaper.blurAmount * 0.3)}px` : '0px'
   setCssVar('--chatify-chat-bg-blur', blurPx)
   setCssVar('--chatify-chat-bg-blur-enabled', blurActive ? '1' : '0')
+
+  const darknessActive = wallpaper.kind === 'image' && (wallpaper.darknessAmount ?? 0) > 0
+  const darknessOpacity = darknessActive
+    ? `${(Math.min(100, Math.max(0, wallpaper.darknessAmount ?? 0)) / 100).toFixed(2)}`
+    : '0'
+  setCssVar('--chatify-chat-bg-darkness', darknessOpacity)
 
   if (wallpaper.kind === 'pattern') {
     const pattern = getPatternById(wallpaper.patternId)
@@ -261,6 +277,7 @@ function normalizeWallpaper(
     imageUrl: typeof input.imageUrl === 'string' ? input.imageUrl : null,
     blurEnabled: typeof input.blurEnabled === 'boolean' ? input.blurEnabled : fallback.blurEnabled,
     blurAmount: clampBlurAmount(input.blurAmount, fallback.blurAmount),
+    darknessAmount: clampDarknessAmount(input.darknessAmount, fallback.darknessAmount ?? 0),
   }
 }
 
@@ -347,6 +364,7 @@ export function preferencesForServer(preferences: ChatifyThemePreferences): Reco
       patternId: preferences.wallpaper.patternId,
       blurEnabled: preferences.wallpaper.blurEnabled,
       blurAmount: preferences.wallpaper.blurAmount,
+      darknessAmount: clampDarknessAmount(preferences.wallpaper.darknessAmount, 0),
     },
   }
 }

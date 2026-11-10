@@ -41,7 +41,7 @@ defineExpose({
       type="search"
       :dir="dir"
       :placeholder="placeholder"
-      class="chatify:w-full chatify:ps-9 chatify:text-start"
+      class="chatify-search-field-input chatify:w-full chatify:ps-9 chatify:text-start"
       :class="[
         model.trim() ? 'chatify:pe-9' : 'chatify:pe-3',
         inputClass,
@@ -61,3 +61,21 @@ defineExpose({
     </button>
   </div>
 </template>
+
+<style scoped>
+.chatify-search-field-input::-webkit-search-decoration,
+.chatify-search-field-input::-webkit-search-cancel-button,
+.chatify-search-field-input::-webkit-search-results-button,
+.chatify-search-field-input::-webkit-search-results-decoration {
+  -webkit-appearance: none;
+  appearance: none;
+  display: none !important;
+}
+
+.chatify-search-field-input::-ms-clear,
+.chatify-search-field-input::-ms-reveal {
+  display: none !important;
+  width: 0;
+  height: 0;
+}
+</style>

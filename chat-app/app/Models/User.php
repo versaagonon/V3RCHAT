@@ -11,12 +11,36 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Chatify\Traits\InteractsWithChatify;
 
-#[Fillable(['name', 'username', 'email', 'password'])]
+#[Fillable(['name', 'username', 'email', 'password', 'role'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable, InteractsWithChatify;
+
+    public function borders(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(
+            \Chatify\Models\AvatarBorder::class,
+            'user_avatar_borders',
+            'user_id',
+            'border_id'
+        )->withTimestamps();
+    }
+
+    public function isAdmin(): bool
+    {
+        return ($this->role ?? 'node') === 'admin';
+    }
+
+    public function hasBorder(int|string $borderId): bool
+    {
+        if ($this->isAdmin()) {
+            return true;
+        }
+
+        return $this->borders()->where('avatar_borders.id', (int) $borderId)->exists();
+    }
 
     /**
      * Get the attributes that should be cast.

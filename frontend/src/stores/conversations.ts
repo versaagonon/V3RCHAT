@@ -9,6 +9,7 @@ import { maskUserIdentity, sanitizeConversationIdentity } from '../utils/userDis
 import { useConfigStore } from './config'
 import { useContactsStore } from './contacts'
 import { useMessagesStore } from './messages'
+import { useUiStore } from './ui'
 
 export const useConversationsStore = defineStore('conversations', () => {
   const items = ref<ChatifyConversation[]>([])
@@ -362,7 +363,11 @@ export const useConversationsStore = defineStore('conversations', () => {
   function handleInboxUpdate(conversation: ChatifyConversation, _currentUserId: number | string) {
     const sanitized = sanitizeForViewer(cloneConversation(conversation))
 
-    if (String(activeId.value) === String(sanitized.id)) {
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 768
+    const uiStore = useUiStore()
+    const isThreadVisible = isMobile ? uiStore.showThreadOnMobile : true
+
+    if (String(activeId.value) === String(sanitized.id) && isThreadVisible) {
       sanitized.attributes.unread_count = 0
     }
 

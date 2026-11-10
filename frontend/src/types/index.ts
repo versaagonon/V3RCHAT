@@ -1,9 +1,21 @@
+export interface AvatarBorder {
+  id: number
+  name: string
+  slug: string
+  image_url: string
+  is_system?: boolean
+  users_count?: number
+}
+
 export interface ChatifyUser {
   type: 'user'
   id: number | string
   attributes: {
     name: string
     avatar: string
+    avatar_border?: AvatarBorder | null
+    role?: 'admin' | 'node' | string
+    username?: string | null
     email?: string | null
     is_online?: boolean
     is_blocked_by_me?: boolean

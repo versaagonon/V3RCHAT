@@ -9,6 +9,10 @@ import { storeToRefs } from 'pinia'
 import UserAvatar from '../ui/UserAvatar.vue'
 import DropdownMenu, { type DropdownMenuItem } from '../ui/DropdownMenu.vue'
 
+const emit = defineEmits<{
+  navigate: [screen: 'profile']
+}>()
+
 const configStore = useConfigStore()
 const settingsStore = useSettingsStore()
 const confirmStore = useConfirmStore()
@@ -20,12 +24,14 @@ const { loggingOut } = storeToRefs(settingsStore)
 const fileInput = ref<HTMLInputElement | null>(null)
 
 const displayName = computed(() => user.value?.attributes.name ?? '')
+const username = computed(() => user.value?.attributes.username ? `@${user.value.attributes.username}` : '')
 const email = computed(() => user.value?.attributes.email ?? '')
 
 const canRemove = computed(() => Boolean(savedAvatarUrl.value) && Boolean(user.value?.attributes.avatar))
 
 const menuItems = computed<DropdownMenuItem[]>(() => {
   const items: DropdownMenuItem[] = [
+    { id: 'profile', label: t('ui.settings.edit_profile', 'Edit Profile') },
     { id: 'change', label: t('ui.settings.change_photo') },
   ]
 
@@ -82,6 +88,11 @@ async function handleLogout() {
 }
 
 function onMenuSelect(id: string) {
+  if (id === 'profile') {
+    emit('navigate', 'profile')
+    return
+  }
+
   if (id === 'change') {
     openPicker()
     return
@@ -99,16 +110,29 @@ function onMenuSelect(id: string) {
 </script>
 
 <template>
-  <div v-if="user" class="chatify:mb-3 chatify:flex chatify:items-center chatify:gap-3">
-    <UserAvatar size="md" :alt="displayName" />
+  <div v-if="user" class="chatify:mb-3 chatify:flex chatify:items-center chatify:gap-3 chatify:rounded-xl chatify:p-1.5 chatify:transition hover:chatify:bg-white/[0.04]">
+    <div
+      class="chatify:flex chatify:min-w-0 chatify:flex-1 chatify:cursor-pointer chatify:items-center chatify:gap-3"
+      role="button"
+      tabindex="0"
+      :aria-label="t('ui.settings.edit_profile', 'Edit Profile')"
+      @click="$emit('navigate', 'profile')"
+      @keydown.enter="$emit('navigate', 'profile')"
+    >
+      <UserAvatar size="md" :alt="displayName" />
 
-    <div class="chatify:min-w-0 chatify:flex-1">
-      <p class="chatify:truncate chatify:text-base chatify:font-semibold chatify:text-chatify-text">
-        {{ displayName }}
-      </p>
-      <p v-if="email" class="chatify:truncate chatify:text-sm chatify:text-chatify-muted">
-        {{ email }}
-      </p>
+      <div class="chatify:min-w-0 chatify:flex-1">
+        <p class="chatify:truncate chatify:text-base chatify:font-semibold chatify:text-chatify-text">
+          {{ displayName }}
+        </p>
+        <p v-if="username || email" class="chatify:truncate chatify:text-xs chatify:text-chatify-muted">
+          {{ username || email }}
+        </p>
+      </div>
+
+      <svg class="chatify:h-4 chatify:w-4 chatify:shrink-0 chatify:text-chatify-muted/50 chatify:transition group-hover:chatify:text-chatify-text" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+      </svg>
     </div>
 
     <DropdownMenu

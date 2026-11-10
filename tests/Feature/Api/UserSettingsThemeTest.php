@@ -59,11 +59,13 @@ class UserSettingsThemeTest extends TestCase
                     'patternId' => 'bubbles',
                     'blurEnabled' => true,
                     'blurAmount' => 40,
+                    'darknessAmount' => 30,
                 ],
             ],
         ])->assertOk()
             ->assertJsonPath('data.attributes.theme_preferences.wallpaper.blurEnabled', true)
-            ->assertJsonPath('data.attributes.theme_preferences.wallpaper.blurAmount', 40);
+            ->assertJsonPath('data.attributes.theme_preferences.wallpaper.blurAmount', 40)
+            ->assertJsonPath('data.attributes.theme_preferences.wallpaper.darknessAmount', 30);
     }
 
     public function test_invalid_wallpaper_blur_amount_is_rejected(): void
@@ -74,6 +76,19 @@ class UserSettingsThemeTest extends TestCase
             'theme_preferences' => [
                 'wallpaper' => [
                     'blurAmount' => 150,
+                ],
+            ],
+        ])->assertUnprocessable();
+    }
+
+    public function test_invalid_wallpaper_darkness_amount_is_rejected(): void
+    {
+        $user = $this->createUser();
+
+        $this->actingAs($user, 'sanctum')->patchJson('/api/chatify/v1/settings', [
+            'theme_preferences' => [
+                'wallpaper' => [
+                    'darknessAmount' => 150,
                 ],
             ],
         ])->assertUnprocessable();

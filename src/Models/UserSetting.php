@@ -19,6 +19,7 @@ class UserSetting extends ChatifyModel
     protected $fillable = [
         'user_id',
         'avatar',
+        'active_border_id',
         'dark_mode',
         'messenger_color',
         'theme_preferences',
@@ -49,5 +50,10 @@ class UserSetting extends ChatifyModel
     public function user(): BelongsTo
     {
         return $this->belongsTo(ChatifyModels::userClass(), 'user_id');
+    }
+
+    public function activeBorder(): BelongsTo
+    {
+        return $this->belongsTo(AvatarBorder::class, 'active_border_id');
     }
 }

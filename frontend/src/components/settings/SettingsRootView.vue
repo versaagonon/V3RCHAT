@@ -14,7 +14,7 @@ import { useConfirmStore } from '../../stores/confirm'
 import { useChatifyI18n } from '../../composables/useChatifyI18n'
 
 defineEmits<{
-  navigate: [screen: 'themes' | 'font' | 'wallpaper' | 'blocked']
+  navigate: [screen: 'themes' | 'font' | 'wallpaper' | 'blocked' | 'profile' | 'admin']
 }>()
 
 const configStore = useConfigStore()
@@ -22,9 +22,18 @@ const contactsStore = useContactsStore()
 const settingsStore = useSettingsStore()
 const confirmStore = useConfirmStore()
 const { t } = useChatifyI18n()
-const { preferences, themesEnabled, fontsEnabled, wallpaperEnabled, showOnlineStatus } = storeToRefs(configStore)
+const { user, preferences, themesEnabled, fontsEnabled, wallpaperEnabled, showOnlineStatus } = storeToRefs(configStore)
 const { blockedUsers } = storeToRefs(contactsStore)
 const { loggingOut } = storeToRefs(settingsStore)
+
+const isAdmin = computed(() => (user.value?.attributes.role ?? 'node') === 'admin')
+
+const profileSubtitle = computed(() => {
+  if (user.value?.attributes.username) {
+    return `@${user.value.attributes.username}`
+  }
+  return user.value?.attributes.name ?? ''
+})
 
 const themeLabel = computed(() => getThemeById(preferences.value.themeId).name)
 const layoutFontsLabel = computed(() => {
@@ -79,9 +88,57 @@ async function handleLogout() {
 
 <template>
   <div>
-    <SettingsProfileHeader />
+    <SettingsProfileHeader @navigate="$emit('navigate', 'profile')" />
 
     <SettingsGroup>
+      <SettingsRow
+        :label="t('ui.settings.profile', 'Profile')"
+        :value="profileSubtitle"
+        chevron
+        @click="$emit('navigate', 'profile')"
+      >
+        <template #icon>
+          <svg
+            class="chatify:h-4 chatify:w-4 chatify:shrink-0 chatify:text-chatify-primary"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+            />
+          </svg>
+        </template>
+      </SettingsRow>
+
+      <SettingsRow
+        v-if="isAdmin"
+        label="Admin Panel"
+        value="Gift & Manage Borders"
+        chevron
+        @click="$emit('navigate', 'admin')"
+      >
+        <template #icon>
+          <svg
+            class="chatify:h-4 chatify:w-4 chatify:shrink-0 chatify:text-amber-400"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+            />
+          </svg>
+        </template>
+      </SettingsRow>
       <SettingsRow
         :label="t('ui.settings.show_online_status')"
         :value="showOnlineStatus ? t('ui.settings.on') : t('ui.settings.off')"

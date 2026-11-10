@@ -81,6 +81,11 @@ final class ContactService
             return null;
         }
 
+        if ($conversation->relationLoaded('participants')) {
+            $participant = $conversation->participants->firstWhere('user_id', '!=', $userId);
+            return $participant?->user;
+        }
+
         $participant = $conversation->participants()
             ->where('user_id', '!=', $userId)
             ->with('user')

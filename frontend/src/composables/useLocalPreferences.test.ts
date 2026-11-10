@@ -113,11 +113,12 @@ describe('useLocalPreferences', () => {
       patternId: 'bubbles',
       blurEnabled: true,
       blurAmount: 65,
+      darknessAmount: 0,
     })
     expect((payload.wallpaper as { imageUrl?: string }).imageUrl).toBeUndefined()
   })
 
-  it('applies wallpaper blur css vars when enabled', () => {
+  it('applies wallpaper blur and darkness css vars when enabled', () => {
     applyPreferences({
       ...defaultPreferences(),
       wallpaper: {
@@ -126,11 +127,13 @@ describe('useLocalPreferences', () => {
         imageUrl: 'https://example.test/bg.jpg',
         blurEnabled: true,
         blurAmount: 50,
+        darknessAmount: 40,
       },
     })
 
     expect(document.documentElement.style.getPropertyValue('--chatify-chat-bg-blur')).toBe('15px')
     expect(document.documentElement.style.getPropertyValue('--chatify-chat-bg-blur-enabled')).toBe('1')
+    expect(document.documentElement.style.getPropertyValue('--chatify-chat-bg-darkness')).toBe('0.40')
   })
 
   it('does not apply wallpaper blur for patterns', () => {

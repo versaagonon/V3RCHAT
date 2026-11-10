@@ -21,6 +21,7 @@ export interface WallpaperPreferences {
   imageUrl: string | null
   blurEnabled: boolean
   blurAmount: number
+  darknessAmount?: number
 }
 
 export interface ChatifyThemePreferences {

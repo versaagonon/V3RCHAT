@@ -123,6 +123,14 @@ final class ThemePreferencesValidator
             $validated['blurAmount'] = $blurAmount;
         }
 
+        if (array_key_exists('darknessAmount', $wallpaper)) {
+            $darknessAmount = (int) $wallpaper['darknessAmount'];
+            if ($darknessAmount < 0 || $darknessAmount > 100) {
+                throw new \InvalidArgumentException(__('chatify::chatify.errors.wallpaper_darkness_out_of_range'));
+            }
+            $validated['darknessAmount'] = $darknessAmount;
+        }
+
         return $validated;
     }
 

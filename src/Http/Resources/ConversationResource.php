@@ -27,7 +27,9 @@ class ConversationResource extends JsonResource
         if ($user !== null) {
             $unread = $this->isSaved()
                 ? 0
-                : app(MessageService::class)->unreadCount($this->resource, (int) $user->getKey());
+                : (isset($this->resource->unread_count)
+                    ? (int) $this->resource->unread_count
+                    : app(MessageService::class)->unreadCount($this->resource, (int) $user->getKey()));
             $participant = $this->participants->firstWhere('user_id', $user->getKey());
 
             if ($this->isDirect()) {

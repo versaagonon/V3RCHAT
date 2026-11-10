@@ -83,6 +83,14 @@ const avatarUrl = computed(() => {
   return displayUserAvatar(user, defaultAvatarUrl.value) || null
 })
 
+const avatarBorderUrl = computed(() => {
+  if (isSaved.value) return null
+  if (props.conversation.attributes.conversation_type === 'group') return null
+  const user = otherUser.value
+  if (!user) return null
+  return user.attributes.avatar_border?.image_url ?? null
+})
+
 const directOnlineLabel = computed(() => {
   if (props.conversation.attributes.conversation_type !== 'direct' || !otherUser.value) {
     return null
@@ -178,6 +186,14 @@ function openInfo(conversation: ChatifyConversation) {
           :alt="displayName"
           class="chatify:h-10 chatify:w-10 chatify:rounded-full chatify:object-cover"
         />
+        <!-- 1:1 Animated Avatar Border Overlay -->
+        <img
+          v-if="avatarBorderUrl"
+          :src="avatarBorderUrl"
+          alt=""
+          class="chatify:pointer-events-none chatify:absolute chatify:inset-[-18%] chatify:h-[136%] chatify:w-[136%] chatify:max-w-none chatify:object-contain chatify:z-10"
+          aria-hidden="true"
+        />
         <span
           v-if="conversation.attributes.conversation_type === 'direct' && otherUser && !contactsStore.isMessagingBlocked(otherUser.id) && presenceStore.visibleOnline(otherUser.id)"
           class="chatify-presence-dot"
@@ -225,6 +241,14 @@ function openInfo(conversation: ChatifyConversation) {
           :src="avatarUrl"
           :alt="displayName"
           class="chatify:h-10 chatify:w-10 chatify:rounded-full chatify:object-cover"
+        />
+        <!-- 1:1 Animated Avatar Border Overlay -->
+        <img
+          v-if="avatarBorderUrl"
+          :src="avatarBorderUrl"
+          alt=""
+          class="chatify:pointer-events-none chatify:absolute chatify:inset-[-18%] chatify:h-[136%] chatify:w-[136%] chatify:max-w-none chatify:object-contain chatify:z-10"
+          aria-hidden="true"
         />
       </div>
 
