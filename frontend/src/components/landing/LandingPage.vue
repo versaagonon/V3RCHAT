@@ -4,12 +4,8 @@ import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { animate, inView, stagger } from 'motion'
 import type { ChatifyUser } from '../../types'
 import logoImg from '../../assets/images/logo_transparant.png'
-import land1Avatar from '../../assets/images/land1.jpg'
-import land2Avatar from '../../assets/images/land2.jpg'
 
 const logoUrl = logoImg || '/vendor/chatify/logo_transparant.png'
-const donAvatarUrl = land1Avatar
-const ravenAvatarUrl = land2Avatar
 
 defineProps<{
   user?: ChatifyUser | null
@@ -20,41 +16,6 @@ defineProps<{
 }>()
 
 const rootContainerRef = ref<HTMLElement | null>(null)
-
-// Interactive Glare & 3D Perspective Tilt for Hero Terminal
-const heroGlareX = ref('50%')
-const heroGlareY = ref('25%')
-const heroGlareOpacity = ref('0.45')
-const heroRotateX = ref('0deg')
-const heroRotateY = ref('0deg')
-
-function handleHeroPointer(e: PointerEvent) {
-  const target = e.currentTarget as HTMLElement | null
-  if (!target) return
-  const rect = target.getBoundingClientRect()
-  const rawX = (e.clientX - rect.left) / rect.width
-  const rawY = (e.clientY - rect.top) / rect.height
-  const x = Math.max(0, Math.min(100, rawX * 100))
-  const y = Math.max(0, Math.min(100, rawY * 100))
-
-  heroGlareX.value = `${Math.round(x)}%`
-  heroGlareY.value = `${Math.round(y)}%`
-  heroGlareOpacity.value = '0.85'
-
-  // Subtle high-end 3D tilt (-3.5deg to +3.5deg)
-  const tiltX = (0.5 - rawY) * 7
-  const tiltY = (rawX - 0.5) * 7
-  heroRotateX.value = `${tiltX.toFixed(2)}deg`
-  heroRotateY.value = `${tiltY.toFixed(2)}deg`
-}
-
-function handleHeroPointerLeave() {
-  heroGlareX.value = '50%'
-  heroGlareY.value = '25%'
-  heroGlareOpacity.value = '0.45'
-  heroRotateX.value = '0deg'
-  heroRotateY.value = '0deg'
-}
 
 // Card glare & 3D tilt states
 const cardGlares = ref([
@@ -85,88 +46,6 @@ function handleCardPointerLeave(index: number) {
   cardGlares.value[index].opacity = '0'
   cardGlares.value[index].rx = '0deg'
   cardGlares.value[index].ry = '0deg'
-}
-
-// Interactive Terminal Mockup State (Allows competition judges to interact!)
-const customDispatchInput = ref('')
-interface MockDispatch {
-  author: string
-  text: string
-  time: string
-  hash: string
-  isVoice?: boolean
-  duration?: string
-}
-const liveDispatches = ref<MockDispatch[]>([])
-
-const presetDispatches = [
-  'Handshake verified. Rotating ephemeral session keys across 12 sovereign nodes.',
-  'Zero-Log directive enforced. Memory page table scrubbed in 0.4ms.',
-  'Telemetry clean. Direct Reverb WebSocket tunnel operating at full capacity.',
-]
-let presetIndex = 0
-
-function triggerMockDispatch() {
-  const textToSend =
-    customDispatchInput.value.trim() ||
-    presetDispatches[presetIndex % presetDispatches.length] ||
-    'Encrypted packet transmitted via isolated Reverb tunnel.'
-  presetIndex++
-  customDispatchInput.value = ''
-
-  const now = new Date()
-  const hh = String(now.getHours()).padStart(2, '0')
-  const mm = String(now.getMinutes()).padStart(2, '0')
-  const randomHash = Math.random().toString(16).substring(2, 6).toUpperCase()
-
-  liveDispatches.value.push({
-    author: 'Operator (You)',
-    text: textToSend,
-    time: `${hh}:${mm} • Delivered`,
-    hash: `0x${randomHash}`,
-  })
-
-  if (liveDispatches.value.length > 3) {
-    liveDispatches.value.shift()
-  }
-}
-
-function triggerVoiceDispatch() {
-  const now = new Date()
-  const hh = String(now.getHours()).padStart(2, '0')
-  const mm = String(now.getMinutes()).padStart(2, '0')
-  const randomHash = Math.random().toString(16).substring(2, 6).toUpperCase()
-
-  liveDispatches.value.push({
-    author: 'Operator (You)',
-    text: '',
-    time: `${hh}:${mm} • Delivered`,
-    hash: `0x${randomHash}`,
-    isVoice: true,
-    duration: '0:18',
-  })
-
-  if (liveDispatches.value.length > 3) {
-    liveDispatches.value.shift()
-  }
-}
-
-function triggerMockAttachment() {
-  const now = new Date()
-  const hh = String(now.getHours()).padStart(2, '0')
-  const mm = String(now.getMinutes()).padStart(2, '0')
-  const randomHash = Math.random().toString(16).substring(2, 6).toUpperCase()
-
-  liveDispatches.value.push({
-    author: 'Operator (You)',
-    text: 'syndicate_payload_v3r_manifest.enc (2.4 MB) • SHA-256 Verified',
-    time: `${hh}:${mm} • Delivered`,
-    hash: `0x${randomHash}`,
-  })
-
-  if (liveDispatches.value.length > 3) {
-    liveDispatches.value.shift()
-  }
 }
 
 function scrollToSection(id: string) {
@@ -473,227 +352,6 @@ onUnmounted(() => {
           <a :href="registerUrl" class="v3r-cta-secondary">
             <span>Create Account</span>
           </a>
-        </div>
-
-        <!-- Hero Visual Mockup: Tactical Specular Terminal -->
-        <div
-          class="v3r-hero-mockup v3r-hero-reveal"
-          :style="{
-            '--glare-x': heroGlareX,
-            '--glare-y': heroGlareY,
-            '--glare-opacity': heroGlareOpacity,
-            '--rx': heroRotateX,
-            '--ry': heroRotateY,
-          }"
-          @pointermove="handleHeroPointer"
-          @pointerleave="handleHeroPointerLeave"
-        >
-          <!-- Ambient Back-Aura behind Terminal -->
-          <div class="v3r-mockup-aura" aria-hidden="true" />
-
-          <div class="v3r-mockup-frame">
-            <!-- Top Specular Edge Highlight -->
-            <span class="v3r-specular-edge" aria-hidden="true" />
-            <span class="liquid-glass-card-glare" aria-hidden="true" />
-
-            <!-- Corner HUD Reticles -->
-            <span class="hud-corner tl" aria-hidden="true" />
-            <span class="hud-corner tr" aria-hidden="true" />
-            <span class="hud-corner bl" aria-hidden="true" />
-            <span class="hud-corner br" aria-hidden="true" />
-
-            <!-- Mockup Header: Tactical Channel Header -->
-            <div class="v3r-mockup-header">
-              <div class="v3r-window-controls">
-                <span class="dot close" />
-                <span class="dot minimize" />
-                <span class="dot expand" />
-              </div>
-
-              <div class="v3r-mockup-channel-header">
-                <div class="v3r-channel-avatar">
-                  <img :src="donAvatarUrl" alt="" class="v3r-avatar-img" />
-                  <span class="v3r-online-dot" />
-                </div>
-                <div class="v3r-channel-info">
-                  <div class="v3r-channel-name">
-                    <span>Don Salvatore</span>
-                    <span class="author-sub">• Capo Console</span>
-                  </div>
-                  <div class="v3r-channel-sub">
-                    <span class="v3r-status-ping" />
-                    <span>online</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Mockup Chat Stream (Identical to Chatify Thread) -->
-            <div class="v3r-mockup-body">
-              <div class="v3r-mock-chat-bg" aria-hidden="true" />
-
-              <!-- Message 1: Incoming (Don Salvatore) -->
-              <div class="v3r-mock-msg-row incoming">
-                <div class="v3r-mock-avatar">
-                  <img :src="donAvatarUrl" alt="" class="v3r-avatar-img" />
-                  <i class="avatar-status" />
-                </div>
-                <div class="v3r-mock-bubble incoming">
-                  <div class="v3r-mock-author">
-                    <span class="author-name">Don Salvatore <span class="author-sub">• Capo Console</span></span>
-                  </div>
-                  <p class="v3r-msg-content">
-                  Tonight's operation must remain sterile. Route all strategic communications exclusively through this private V3RCHAT node.
-                  </p>
-                  <div class="v3r-mock-meta">
-                    <span class="v3r-meta-time">23:42</span>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Message 2: Outgoing (Operator / You) -->
-              <div class="v3r-mock-msg-row outgoing">
-                <div class="v3r-mock-bubble outgoing">
-                  <div class="v3r-mock-author outgoing">
-                    <span class="author-name">Operator (You)</span>
-                  </div>
-                  <p class="v3r-msg-content">
-                    Confirmed. Isolated WebSocket session running on dedicated hardware. In-memory residue is purged instantly.
-                  </p>
-                  <div class="v3r-mock-meta">
-                    <span class="v3r-meta-time">23:43 • Delivered</span>
-                    <span class="v3r-double-ticks">✓✓</span>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Message 3: Incoming (Raven Node) -->
-              <div class="v3r-mock-msg-row incoming">
-                <div class="v3r-mock-avatar">
-                  <img :src="ravenAvatarUrl" alt="" class="v3r-avatar-img" />
-                  <i class="avatar-status" />
-                </div>
-                <div class="v3r-mock-bubble incoming">
-                  <div class="v3r-mock-author">
-                    <span class="author-name">Raven Node <span class="author-sub">• Intel Division</span></span>
-                  </div>
-                  <p class="v3r-msg-content">
-                    Group enclave locked down. No phone numbers, IP traces, or central metadata exposed to external networks.
-                  </p>
-                  <div class="v3r-mock-meta">
-                    <span class="v3r-meta-time">23:45</span>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Dynamic Dispatches (Interactive Outgoing Bubbles) -->
-              <div
-                v-for="(item, idx) in liveDispatches"
-                :key="idx"
-                class="v3r-mock-msg-row outgoing v3r-live-msg-enter"
-              >
-                <div class="v3r-mock-bubble outgoing">
-                  <div class="v3r-mock-author outgoing">
-                    <span class="author-name">{{ item.author }}</span>
-                  </div>
-
-                  <!-- Simulated Voice Note Bubble -->
-                  <div v-if="item.isVoice" class="v3r-mock-voice-wrap">
-                    <button type="button" class="v3r-mock-voice-play" aria-label="Play voice note">
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M8 5v14l11-7z" />
-                      </svg>
-                    </button>
-                    <div class="v3r-mock-voice-bars" aria-hidden="true">
-                      <span style="height: 35%" />
-                      <span style="height: 65%" />
-                      <span style="height: 90%" />
-                      <span style="height: 50%" />
-                      <span style="height: 80%" />
-                      <span style="height: 100%" />
-                      <span style="height: 60%" />
-                      <span style="height: 85%" />
-                      <span style="height: 45%" />
-                      <span style="height: 75%" />
-                      <span style="height: 90%" />
-                      <span style="height: 55%" />
-                      <span style="height: 70%" />
-                      <span style="height: 40%" />
-                      <span style="height: 80%" />
-                      <span style="height: 95%" />
-                    </div>
-                    <span class="v3r-mock-voice-dur">{{ item.duration || '0:18' }}</span>
-                  </div>
-
-                  <p v-else class="v3r-msg-content">{{ item.text }}</p>
-
-                  <div class="v3r-mock-meta">
-                    <span class="v3r-meta-time">{{ item.time }}</span>
-                    <span class="v3r-double-ticks">✓✓</span>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Mockup Bottom Bar: Specular Floating Pill Composer (Transparent Flow) -->
-              <div class="v3r-mockup-composer-area">
-                <form class="v3r-floating-composer-pill liquid-glass-composer" @submit.prevent="triggerMockDispatch">
-                  <span class="liquid-glass-refraction-fringe" aria-hidden="true" />
-                  <span class="liquid-glass-specular" aria-hidden="true" />
-                  <span class="liquid-glass-glare" aria-hidden="true" />
-                  <span class="liquid-glass-glare-opposite" aria-hidden="true" />
-                  <span class="liquid-glass-rim" aria-hidden="true" />
-
-                  <!-- Attach Icon Button -->
-                  <button
-                    type="button"
-                    class="v3r-composer-icon-btn"
-                    title="Attach file"
-                    aria-label="Attach file"
-                    @click="triggerMockAttachment"
-                  >
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" />
-                    </svg>
-                  </button>
-
-                  <!-- Floating Input Field -->
-                  <input
-                    v-model="customDispatchInput"
-                    type="text"
-                    class="v3r-composer-input-field"
-                    placeholder="Transmit secure dispatch... (Press Enter or Send)"
-                    aria-label="Simulate dispatch"
-                  />
-
-                  <!-- Dynamic Action Button: Send vs VN / Mic Button -->
-                  <button
-                    v-if="customDispatchInput.trim()"
-                    type="submit"
-                    class="v3r-composer-action-btn send-mode"
-                    title="Transmit Dispatch"
-                    aria-label="Send message"
-                  >
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
-                    </svg>
-                  </button>
-
-                  <button
-                    v-else
-                    type="button"
-                    class="v3r-composer-action-btn mic-mode"
-                    title="Transmit Voice Note (VN)"
-                    aria-label="Record voice note"
-                    @click="triggerVoiceDispatch"
-                  >
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.91-3c-.49 0-.9.36-.98.85C16.52 14.2 14.47 16 12 16s-4.52-1.8-4.93-4.15c-.08-.49-.49-.85-.98-.85-.61 0-1.09.54-1 1.14.49 3 2.89 5.35 5.91 5.78V20c0 .55.45 1 1 1s1-.45 1-1v-2.08c3.02-.43 5.42-2.78 5.91-5.78.1-.6-.39-1.14-1-1.14z" />
-                    </svg>
-                  </button>
-                </form>
-              </div>
-            </div>
-          </div>
         </div>
       </section>
 
@@ -1057,7 +715,7 @@ onUnmounted(() => {
   -webkit-user-select: text;
   background-color: #000000;
   color: #f4f4f5;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  font-family: var(--v3r-font-sans, 'SF Pro', 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -1204,6 +862,7 @@ onUnmounted(() => {
 }
 
 .v3r-brand-name {
+  font-family: var(--v3r-font-display, 'SF Pro Display', 'SF Pro', -apple-system, BlinkMacSystemFont, sans-serif);
   font-size: 0.925rem;
   font-weight: 800;
   letter-spacing: 0.1em;
@@ -1482,6 +1141,7 @@ onUnmounted(() => {
 }
 
 .v3r-hero-title {
+  font-family: var(--v3r-font-display, 'SF Pro Display', 'SF Pro', -apple-system, BlinkMacSystemFont, sans-serif);
   font-size: clamp(2rem, 4.4vw, 3.85rem);
   font-weight: 800;
   letter-spacing: -0.04em;
@@ -1860,7 +1520,7 @@ onUnmounted(() => {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  font-family: var(--chatify-font-family, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif);
+  font-family: var(--v3r-font-sans, 'SF Pro Text', 'SF Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif);
 }
 
 .v3r-channel-name .author-sub {
@@ -2018,7 +1678,7 @@ onUnmounted(() => {
   line-height: 1.45;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
   transition: transform 0.18s ease;
-  font-family: var(--chatify-font-family, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif);
+  font-family: var(--v3r-font-sans, 'SF Pro Text', 'SF Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif);
 }
 
 .v3r-mock-bubble:hover {
@@ -2053,7 +1713,7 @@ onUnmounted(() => {
 }
 
 .v3r-mock-bubble.incoming .author-name {
-  font-family: var(--chatify-font-family, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif);
+  font-family: var(--v3r-font-sans, 'SF Pro Text', 'SF Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif);
   font-size: 0.75rem; /* 12px exact Chatify text-xs */
   font-weight: 600;
   color: #e4e4e7;
@@ -2061,14 +1721,14 @@ onUnmounted(() => {
 }
 
 .author-sub {
-  font-family: var(--chatify-font-family, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif);
+  font-family: var(--v3r-font-sans, 'SF Pro Text', 'SF Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif);
   font-size: 0.72rem;
   font-weight: 400;
   color: #a1a1aa;
 }
 
 .v3r-mock-bubble.outgoing .author-name {
-  font-family: var(--chatify-font-family, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif);
+  font-family: var(--v3r-font-sans, 'SF Pro Text', 'SF Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif);
   font-size: 0.75rem; /* 12px exact Chatify text-xs */
   font-weight: 600;
   color: #e4e4e7;
@@ -2367,6 +2027,7 @@ onUnmounted(() => {
 }
 
 .v3r-section-title {
+  font-family: var(--v3r-font-display, 'SF Pro Display', 'SF Pro', -apple-system, BlinkMacSystemFont, sans-serif);
   font-size: clamp(1.75rem, 3.5vw, 2.5rem);
   font-weight: 800;
   letter-spacing: -0.03em;
@@ -2591,6 +2252,7 @@ onUnmounted(() => {
 .v3r-feature-title {
   position: relative;
   z-index: 2;
+  font-family: var(--v3r-font-display, 'SF Pro Display', 'SF Pro', -apple-system, BlinkMacSystemFont, sans-serif);
   font-size: 1.1rem;
   font-weight: 700;
   letter-spacing: -0.01em;

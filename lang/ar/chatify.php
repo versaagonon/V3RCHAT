@@ -461,6 +461,7 @@ return [
 
         'fonts' => [
             'system' => 'خط النظام',
+            'sfpro' => 'SF Pro',
             'segoe' => 'Segoe UI',
             'arial' => 'Arial',
             'helvetica' => 'Helvetica',

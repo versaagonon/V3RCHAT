@@ -25,7 +25,17 @@ class ViteDevHelper
         $host = '127.0.0.1';
         $port = 5173;
 
-        if (is_string($configured) && $configured !== '' && $configured !== 'auto' && $configured !== 'true' && $configured !== '1') {
+        // Check if public/hot exists
+        $hotFile = public_path('hot');
+        if (file_exists($hotFile)) {
+            $hotContent = trim((string) @file_get_contents($hotFile));
+            if ($hotContent !== '') {
+                if (preg_match('#^https?://([^:/]+)(?::(\d+))?#', $hotContent, $matches)) {
+                    $host = ($matches[1] === 'localhost') ? '127.0.0.1' : $matches[1];
+                    $port = ! empty($matches[2]) ? (int) $matches[2] : 5173;
+                }
+            }
+        } elseif (is_string($configured) && $configured !== '' && $configured !== 'auto' && $configured !== 'true' && $configured !== '1') {
             if (preg_match('#^https?://([^:/]+)(?::(\d+))?#', $configured, $matches)) {
                 $host = ($matches[1] === 'localhost') ? '127.0.0.1' : $matches[1];
                 $port = ! empty($matches[2]) ? (int) $matches[2] : 5173;
@@ -33,9 +43,9 @@ class ViteDevHelper
         }
 
         // Fast probe: 127.0.0.1 first (avoids Windows IPv6 DNS stall), then localhost
-        $socket = @fsockopen($host, $port, $errno, $errstr, 0.15);
+        $socket = @fsockopen($host, $port, $errno, $errstr, 0.4);
         if (! $socket && $host === '127.0.0.1') {
-            $socket = @fsockopen('localhost', $port, $errno, $errstr, 0.15);
+            $socket = @fsockopen('localhost', $port, $errno, $errstr, 0.4);
         }
 
         if ($socket) {

@@ -482,6 +482,7 @@ return [
 
         'fonts' => [
             'system' => 'System font',
+            'sfpro' => 'SF Pro',
             'segoe' => 'Segoe UI',
             'arial' => 'Arial',
             'helvetica' => 'Helvetica',

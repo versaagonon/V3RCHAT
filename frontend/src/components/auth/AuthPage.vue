@@ -336,7 +336,16 @@ async function handleSubmit(event: Event) {
 
       <!-- General Error Alert -->
       <div v-if="generalError" class="v3rchat-auth-alert" role="alert">
-        <svg class="v3rchat-auth-alert-icon" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+        <svg
+          class="v3rchat-auth-alert-icon"
+          width="18"
+          height="18"
+          style="width: 1.125rem; height: 1.125rem; min-width: 1.125rem; max-width: 1.125rem; min-height: 1.125rem; max-height: 1.125rem; flex-shrink: 0;"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+        >
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
         <span class="v3rchat-auth-alert-msg">{{ generalError }}</span>
@@ -688,6 +697,7 @@ async function handleSubmit(event: Event) {
   background-color: #000000;
   overflow: hidden;
   user-select: none;
+  font-family: var(--v3r-font-sans, 'SF Pro Text', 'SF Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif);
 }
 
 .v3rchat-auth-bg-pattern {
@@ -820,6 +830,7 @@ async function handleSubmit(event: Event) {
 }
 
 .v3rchat-auth-title {
+  font-family: var(--v3r-font-display, 'SF Pro Display', 'SF Pro', -apple-system, BlinkMacSystemFont, sans-serif);
   font-size: 1.5rem;
   font-weight: 700;
   color: #ffffff;

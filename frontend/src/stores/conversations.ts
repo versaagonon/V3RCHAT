@@ -16,7 +16,7 @@ export const useConversationsStore = defineStore('conversations', () => {
   const loading = ref(false)
   const loadFailed = ref(false)
   const searchQuery = ref('')
-  const sidebarTab = ref<'chats' | 'favorites'>('chats')
+  const sidebarTab = ref<'chats' | 'favorites' | 'settings'>('chats')
 
   const configStore = useConfigStore()
 
@@ -406,7 +406,7 @@ export const useConversationsStore = defineStore('conversations', () => {
     searchQuery.value = query
   }
 
-  function setSidebarTab(tab: 'chats' | 'favorites') {
+  function setSidebarTab(tab: 'chats' | 'favorites' | 'settings') {
     sidebarTab.value = tab
   }
 

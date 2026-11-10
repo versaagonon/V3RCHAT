@@ -1,6 +1,19 @@
 @import 'tailwindcss' prefix(chatify);
+@import './assets/fonts/fonts.css';
 
 @source "./**/*.{vue,ts}";
+
+:root {
+  --chatify-font-family: 'SF Pro Text', 'SF Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --v3r-font-sans: 'SF Pro Text', 'SF Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --v3r-font-display: 'SF Pro Display', 'SF Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --v3r-font-text: 'SF Pro Text', 'SF Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+html,
+body {
+  font-family: var(--chatify-font-family, 'SF Pro Text', 'SF Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif);
+}
 
 @theme {
   --color-chatify-primary: #ffffff;
@@ -21,7 +34,7 @@
   --chatify-text-base: calc(var(--chatify-font-size-base, 14px) * (16 / 14) / 16 * 1rem);
   --chatify-text-lg: calc(var(--chatify-font-size-base, 14px) * (18 / 14) / 16 * 1rem);
   --chatify-text-xl: calc(var(--chatify-font-size-base, 14px) * (20 / 14) / 16 * 1rem);
-  font-family: var(--chatify-font-family, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif);
+  font-family: var(--chatify-font-family, 'SF Pro Text', 'SF Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif);
   font-size: var(--chatify-text-sm, var(--chatify-font-size-base, 14px));
   color: var(--chatify-color-chatify-text);
   background-color: var(--chatify-color-chatify-panel);

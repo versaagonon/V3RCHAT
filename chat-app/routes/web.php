@@ -21,3 +21,17 @@ Route::middleware('auth')->group(function () {
 });
 
 require __DIR__.'/auth.php';
+
+if (app()->environment('local')) {
+    Route::get('/node_modules/{any}', function (string $any) {
+        return redirect("http://127.0.0.1:5173/node_modules/{$any}");
+    })->where('any', '.*');
+
+    Route::get('/@vite/{any}', function (string $any) {
+        return redirect("http://127.0.0.1:5173/@vite/{$any}");
+    })->where('any', '.*');
+
+    Route::get('/src/{any}', function (string $any) {
+        return redirect("http://127.0.0.1:5173/src/{$any}");
+    })->where('any', '.*');
+}

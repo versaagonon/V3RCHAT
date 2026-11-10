@@ -1,8 +1,45 @@
-import { copyFileSync, existsSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, readdirSync, unlinkSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import tailwindcss from '@tailwindcss/vite'
 import vue from '@vitejs/plugin-vue'
 import { defineConfig } from 'vite'
+
+function laravelHotFilePlugin() {
+  const hotFilePath = resolve(__dirname, '../chat-app/public/hot')
+  return {
+    name: 'laravel-hot-file',
+    configureServer() {
+      const devUrl = 'http://127.0.0.1:5173'
+      try {
+        writeFileSync(hotFilePath, devUrl, 'utf-8')
+        console.log(`[V3RCHAT] Hot file written: ${hotFilePath} -> ${devUrl}`)
+      } catch (err) {
+        console.warn('[V3RCHAT] Failed to write hot file:', err)
+      }
+
+      const cleanUp = () => {
+        try {
+          if (existsSync(hotFilePath)) {
+            unlinkSync(hotFilePath)
+            console.log('[V3RCHAT] Hot file removed.')
+          }
+        } catch {
+          // ignore
+        }
+      }
+
+      process.on('exit', cleanUp)
+      process.on('SIGINT', () => {
+        cleanUp()
+        process.exit()
+      })
+      process.on('SIGTERM', () => {
+        cleanUp()
+        process.exit()
+      })
+    },
+  }
+}
 
 function syncBuildToLaravel() {
   return {
@@ -19,13 +56,29 @@ function syncBuildToLaravel() {
             console.log(`[V3RCHAT] Synced ${file} -> chat-app/public/vendor/chatify/`)
           }
         }
+
+        // Sync fonts directory
+        const srcFonts = resolve(__dirname, 'src/assets/fonts')
+        const destFonts = resolve(targetDir, 'fonts')
+        if (existsSync(srcFonts)) {
+          if (!existsSync(destFonts)) {
+            mkdirSync(destFonts, { recursive: true })
+          }
+          for (const fontFile of readdirSync(srcFonts)) {
+            if (fontFile.endsWith('.woff2')) {
+              copyFileSync(resolve(srcFonts, fontFile), resolve(destFonts, fontFile))
+            }
+          }
+          console.log(`[V3RCHAT] Synced font files -> chat-app/public/vendor/chatify/fonts/`)
+        }
       }
     },
   }
 }
 
 export default defineConfig(({ mode }) => ({
-  plugins: [vue(), tailwindcss(), syncBuildToLaravel()],
+  base: mode === 'development' ? 'http://127.0.0.1:5173/' : './',
+  plugins: [vue(), tailwindcss(), laravelHotFilePlugin(), syncBuildToLaravel()],
   server: {
     host: '0.0.0.0',
     port: 5173,
@@ -35,11 +88,14 @@ export default defineConfig(({ mode }) => ({
     hmr: {
       host: '127.0.0.1',
       port: 5173,
+      protocol: 'ws',
+    },
+    headers: {
+      'Access-Control-Allow-Origin': '*',
     },
   },
   define: {
-    ...(mode === 'production' ? { 'process.env.NODE_ENV': JSON.stringify('production') } : {}),
-    'process.env': '{}',
+    'process.env.NODE_ENV': JSON.stringify(mode === 'production' ? 'production' : 'development'),
   },
   css: {
     postcss: './postcss.config.js',
@@ -57,7 +113,12 @@ export default defineConfig(({ mode }) => ({
     cssCodeSplit: false,
     rollupOptions: {
       output: {
-        assetFileNames: 'chatify.css',
+        assetFileNames: (assetInfo) => {
+          if (assetInfo.name && assetInfo.name.endsWith('.css')) {
+            return 'chatify.css'
+          }
+          return 'fonts/[name][extname]'
+        },
         inlineDynamicImports: true,
       },
     },

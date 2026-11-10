@@ -7,7 +7,8 @@ export interface FontOption {
 }
 
 const FONT_REGISTRY: FontOption[] = [
-  { id: 'system', label: 'System font', stack: 'system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif' },
+  { id: 'system', label: 'System font', stack: "'SF Pro Text', 'SF Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" },
+  { id: 'sfpro', label: 'SF Pro', stack: "'SF Pro Text', 'SF Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" },
   { id: 'segoe', label: 'Segoe UI', stack: '"Segoe UI", system-ui, sans-serif' },
   { id: 'arial', label: 'Arial', stack: 'Arial, Helvetica, sans-serif' },
   { id: 'helvetica', label: 'Helvetica', stack: 'Helvetica, Arial, sans-serif' },
