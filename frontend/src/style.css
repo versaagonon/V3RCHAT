@@ -1471,6 +1471,23 @@ body.chatify-dark {
   transform: translateX(100%);
 }
 
+/* 3-Tab Responsive Layout for Sidebar Bottom Bar (Chats | Favorites | Settings) */
+.chatify-sidebar-bottom-nav .liquid-glass-sliding-pill {
+  width: calc((100% - 0.56rem) / 3);
+}
+
+.chatify-sidebar-bottom-nav .liquid-glass-sliding-pill.pos-chats {
+  transform: translateX(0%);
+}
+
+.chatify-sidebar-bottom-nav .liquid-glass-sliding-pill.pos-favorites {
+  transform: translateX(100%);
+}
+
+.chatify-sidebar-bottom-nav .liquid-glass-sliding-pill.pos-settings {
+  transform: translateX(200%);
+}
+
 .liquid-glass-sliding-pill .sliding-pill-glow {
   position: absolute;
   inset: 0;
@@ -1542,6 +1559,41 @@ body.chatify-dark {
 
 .chatify-settings-row + .chatify-settings-row {
   border-top: 1px solid color-mix(in srgb, var(--chatify-color-chatify-text) 7%, var(--chatify-color-chatify-bubble-in));
+}
+
+/* Sidebar Settings Panel - Follows Active Sidebar Theme */
+.chatify-sidebar-settings {
+  background-color: var(--chatify-color-chatify-sidebar);
+  color: var(--chatify-color-chatify-text);
+}
+
+.chatify-sidebar-settings .chatify-settings-group {
+  background-color: color-mix(in srgb, var(--chatify-color-chatify-text) 5%, var(--chatify-color-chatify-sidebar));
+  border: 1px solid color-mix(in srgb, var(--chatify-color-chatify-text) 8%, var(--chatify-color-chatify-sidebar));
+}
+
+.chatify-sidebar-settings .chatify-settings-row {
+  color: var(--chatify-color-chatify-text);
+}
+
+.chatify-sidebar-settings .chatify-settings-row + .chatify-settings-row {
+  border-top: 1px solid color-mix(in srgb, var(--chatify-color-chatify-text) 8%, var(--chatify-color-chatify-sidebar));
+}
+
+.chatify-sidebar-settings .chatify-settings-row:hover:not(:disabled) {
+  background-color: color-mix(in srgb, var(--chatify-color-chatify-text) 8%, var(--chatify-color-chatify-sidebar));
+}
+
+.chatify-sidebar-settings .chatify-settings-input,
+.chatify-sidebar-settings input[type="search"] {
+  background-color: color-mix(in srgb, var(--chatify-color-chatify-text) 5%, var(--chatify-color-chatify-sidebar));
+  border: 1px solid color-mix(in srgb, var(--chatify-color-chatify-text) 10%, var(--chatify-color-chatify-sidebar));
+  color: var(--chatify-color-chatify-text);
+}
+
+.chatify-sidebar-settings .chatify-tile-selected {
+  border-color: var(--chatify-color-chatify-primary) !important;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--chatify-color-chatify-primary) 35%, transparent);
 }
 
 .chatify-modal-enter-active,

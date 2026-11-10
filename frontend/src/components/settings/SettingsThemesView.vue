@@ -17,7 +17,7 @@ function selectTheme(themeId: typeof preferences.value.themeId) {
 
 <template>
   <div class="chatify:min-w-0 chatify:space-y-4 chatify:overflow-hidden">
-    <div v-if="themesEnabled" class="chatify:flex chatify:min-w-0 chatify:gap-2">
+    <div v-if="themesEnabled" class="chatify:grid chatify:grid-cols-2 chatify:gap-2.5 chatify:min-w-0">
       <ThemeCard
         v-for="theme in themePresets"
         :key="theme.id"

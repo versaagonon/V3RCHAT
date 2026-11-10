@@ -309,7 +309,7 @@ async function dispatchSend(options?: {
   body.value = ''
   clearAttachments()
   resetTextareaHeight()
-  stopTyping()
+  stopTyping({ silent: true })
 
   if (editing) {
     messagesStore.setEditingMessage(null)

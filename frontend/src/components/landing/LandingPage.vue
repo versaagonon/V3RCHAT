@@ -687,7 +687,7 @@ onUnmounted(() => {
 
         <div class="v3r-footer-status">
           <span class="status-node" />
-          <span>ALL NODES OPERATIONAL • ZERO METADATA EXPOSURE</span>
+          <span>ANONYM • ZERO METADATA</span>
         </div>
       </div>
     </footer>

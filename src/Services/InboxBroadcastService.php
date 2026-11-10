@@ -15,8 +15,11 @@ final class InboxBroadcastService
         private readonly MessageService $messageService,
     ) {}
 
-    public function broadcastForConversation(Conversation $conversation, ?Message $lastMessage = null): void
-    {
+    public function broadcastForConversation(
+        Conversation $conversation,
+        ?Message $lastMessage = null,
+        ?int $excludeUserId = null,
+    ): void {
         $conversation->loadMissing(['participants']);
 
         if ($lastMessage === null) {
@@ -31,6 +34,11 @@ final class InboxBroadcastService
 
         foreach ($conversation->participants as $participant) {
             $userId = (int) $participant->user_id;
+
+            if ($excludeUserId !== null && $userId === $excludeUserId) {
+                continue;
+            }
+
             $unread = $this->messageService->unreadCount($conversation, $userId);
 
             ConversationInboxUpdated::dispatch(

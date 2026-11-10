@@ -92,7 +92,11 @@ final class SendMessage
         $this->conversationService->unhideForAllParticipants($conversation);
 
         MessageSent::dispatch($message);
-        $this->inboxBroadcastService->broadcastForConversation($conversation->fresh(['participants']), $message);
+        $this->inboxBroadcastService->broadcastForConversation(
+            $conversation->loadMissing('participants'),
+            $message,
+            (int) $sender->getKey()
+        );
 
         return $message;
     }

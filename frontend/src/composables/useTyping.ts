@@ -52,13 +52,17 @@ export function useTyping(conversationId: () => string | null) {
     }
   }
 
+  let lastTypingSentAt = 0
+
   function notifyTyping() {
     if (!canSendTyping()) {
       return
     }
 
-    if (!isTyping.value) {
+    const now = Date.now()
+    if (!isTyping.value || now - lastTypingSentAt > 3000) {
       isTyping.value = true
+      lastTypingSentAt = now
       void sendTypingState(true)
     }
 
@@ -69,11 +73,13 @@ export function useTyping(conversationId: () => string | null) {
     }, TYPING_STOP_MS)
   }
 
-  function stopTyping() {
+  function stopTyping(options?: { silent?: boolean }) {
     clearTimer()
     if (isTyping.value) {
       isTyping.value = false
-      void sendTypingState(false)
+      if (!options?.silent) {
+        void sendTypingState(false)
+      }
     }
   }
 

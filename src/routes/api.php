@@ -47,7 +47,7 @@ Route::middleware($apiMiddleware)
         Route::post('conversations/{conversation}/read', [ConversationController::class, 'markRead']);
         Route::patch('conversations/{conversation}/pin', [ConversationController::class, 'pin']);
         Route::post('conversations/{conversation}/typing', [TypingController::class, 'store'])
-            ->middleware('throttle:chatify-messages');
+            ->middleware('throttle:chatify-typing');
         Route::post('conversations/{conversation}/forward', [MessageController::class, 'forward'])
             ->middleware('throttle:chatify-messages');
         Route::post('conversations/{conversation}/participants', [ConversationController::class, 'addParticipants']);
