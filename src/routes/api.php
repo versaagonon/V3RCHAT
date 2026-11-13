@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 use Chatify\Http\Controllers\Api\AdminBorderController;
+use Chatify\Http\Controllers\Api\AdminNameplateController;
+use Chatify\Http\Controllers\Api\AdminProfileEffectController;
 use Chatify\Http\Controllers\Api\AttachmentController;
 use Chatify\Http\Controllers\Api\BlockController;
 use Chatify\Http\Controllers\Api\BroadcastAuthController;
@@ -12,10 +14,13 @@ use Chatify\Http\Controllers\Api\FavoriteController;
 use Chatify\Http\Controllers\Api\GroupParticipantController;
 use Chatify\Http\Controllers\Api\LinkPreviewController;
 use Chatify\Http\Controllers\Api\MessageController;
+use Chatify\Http\Controllers\Api\NotificationController;
 use Chatify\Http\Controllers\Api\PresenceController;
 use Chatify\Http\Controllers\Api\TranslationsController;
 use Chatify\Http\Controllers\Api\TypingController;
 use Chatify\Http\Controllers\Api\UserBorderController;
+use Chatify\Http\Controllers\Api\UserNameplateController;
+use Chatify\Http\Controllers\Api\UserProfileEffectController;
 use Chatify\Http\Controllers\Api\UserController;
 use Chatify\Http\Controllers\Api\UserProfileController;
 use Chatify\Http\Controllers\Api\UserSettingsController;
@@ -70,8 +75,10 @@ Route::middleware($apiMiddleware)
             ->middleware('throttle:chatify-messages');
         Route::delete('messages/{message}', [MessageController::class, 'destroy']);
 
-        Route::get('contacts/search', [ContactController::class, 'search']);
-        Route::get('link-preview', [LinkPreviewController::class, 'show']);
+        Route::get('contacts/search', [ContactController::class, 'search'])
+            ->middleware('throttle:chatify-search');
+        Route::get('link-preview', [LinkPreviewController::class, 'show'])
+            ->middleware('throttle:chatify-link-preview');
 
         Route::get('favorites', [FavoriteController::class, 'index']);
         Route::post('favorites/{user}', [FavoriteController::class, 'toggle']);
@@ -91,6 +98,18 @@ Route::middleware($apiMiddleware)
             ->middleware('throttle:chatify-uploads');
         Route::get('borders', [UserBorderController::class, 'index']);
         Route::post('profile/border', [UserBorderController::class, 'update']);
+        Route::get('nameplates', [UserNameplateController::class, 'index']);
+        Route::post('profile/nameplate', [UserNameplateController::class, 'update']);
+        Route::get('profile-effects', [UserProfileEffectController::class, 'index']);
+        Route::post('profile/profile-effect', [UserProfileEffectController::class, 'update']);
+
+        Route::get('notifications', [NotificationController::class, 'index']);
+        Route::post('notifications/{id}/read', [NotificationController::class, 'markRead']);
+        Route::post('notifications/read-all', [NotificationController::class, 'markAllRead']);
+        Route::post('notifications/{id}/confirm', [NotificationController::class, 'confirmRequest']);
+        Route::post('notifications/{id}/delete', [NotificationController::class, 'deleteRequest']);
+        Route::delete('notifications', [NotificationController::class, 'destroyAll']);
+        Route::delete('notifications/{id}', [NotificationController::class, 'destroy']);
 
         Route::prefix('admin')->group(function () {
             Route::get('borders', [AdminBorderController::class, 'index']);
@@ -99,7 +118,21 @@ Route::middleware($apiMiddleware)
             Route::delete('borders/{id}', [AdminBorderController::class, 'destroy']);
             Route::post('borders/gift', [AdminBorderController::class, 'gift']);
             Route::delete('borders/gift', [AdminBorderController::class, 'revokeGift']);
+            Route::get('nameplates', [AdminNameplateController::class, 'index']);
+            Route::post('nameplates', [AdminNameplateController::class, 'store'])
+                ->middleware('throttle:chatify-uploads');
+            Route::delete('nameplates/{id}', [AdminNameplateController::class, 'destroy']);
+            Route::post('nameplates/gift', [AdminNameplateController::class, 'gift']);
+            Route::delete('nameplates/gift', [AdminNameplateController::class, 'revokeGift']);
+            Route::get('profile-effects', [AdminProfileEffectController::class, 'index']);
+            Route::post('profile-effects/gift', [AdminProfileEffectController::class, 'gift']);
+            Route::delete('profile-effects/gift', [AdminProfileEffectController::class, 'revokeGift']);
+            Route::post('profile-effects', [AdminProfileEffectController::class, 'store'])
+                ->middleware('throttle:chatify-uploads');
+            Route::delete('profile-effects/{id}', [AdminProfileEffectController::class, 'destroy']);
             Route::get('users', [AdminBorderController::class, 'users']);
+            Route::post('announcements', [NotificationController::class, 'broadcastAnnouncement'])
+                ->middleware('throttle:chatify-uploads');
         });
 
         Route::get('settings', [UserSettingsController::class, 'show']);

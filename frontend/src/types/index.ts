@@ -7,13 +7,42 @@ export interface AvatarBorder {
   users_count?: number
 }
 
+export interface Nameplate {
+  id: number
+  name: string
+  slug: string
+  image_url: string
+  is_system?: boolean
+  users_count?: number
+}
+
+/**
+ * Paired 450x880 APNG profile animation. pair-1 plays once as the entrance,
+ * pair-2 then repeats with a short idle gap between plays.
+ */
+export interface ProfileEffect {
+  id: number
+  name: string
+  slug: string
+  thumbnail_url: string
+  pair1_url: string
+  pair2_url: string
+  pair1_duration_ms: number
+  pair2_duration_ms: number
+  is_system?: boolean
+  users_count?: number
+}
+
 export interface ChatifyUser {
   type: 'user'
   id: number | string
   attributes: {
     name: string
     avatar: string
+    avatar_is_custom?: boolean
     avatar_border?: AvatarBorder | null
+    nameplate?: Nameplate | null
+    profile_effect?: ProfileEffect | null
     role?: 'admin' | 'node' | string
     username?: string | null
     email?: string | null
@@ -21,6 +50,8 @@ export interface ChatifyUser {
     is_blocked_by_me?: boolean
     is_blocked_by_them?: boolean
     is_identity_hidden?: boolean
+    profile_banner?: string | null
+    created_at?: string | null
   }
 }
 
@@ -155,6 +186,7 @@ export interface UserSettings {
   attributes: {
     avatar: string
     avatar_url: string
+    avatar_is_custom?: boolean
     dark_mode: boolean
     messenger_color: string
     theme_preferences: Record<string, unknown> | null
@@ -277,12 +309,36 @@ export interface SingleResponse<T> {
 
 export type ModalName =
   | 'contactInfo'
+  | 'profileInfo'
   | 'groupInfo'
   | 'createGroup'
   | 'newChat'
   | 'settings'
   | 'forwardMessage'
+  | 'notifications'
+  | 'pwaInstall'
   | null
+
+export type SidebarTab = 'chats' | 'favorites' | 'settings' | 'notifications'
+
+export interface NotificationAuthor {
+  id: number | string
+  name: string
+  avatar: string | null
+  avatar_border?: AvatarBorder | null
+}
+
+export interface ChatifyNotification {
+  id: string
+  type: 'information' | 'request'
+  title: string
+  body: string
+  image_url?: string | null
+  data?: Record<string, any> | null
+  author?: NotificationAuthor | null
+  status: 'unread' | 'read' | 'pending' | 'accepted' | 'declined'
+  created_at: string
+}
 
 export type GroupInfoView = 'main' | 'members' | 'media'
 

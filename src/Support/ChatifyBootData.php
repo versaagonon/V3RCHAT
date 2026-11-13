@@ -27,6 +27,12 @@ final class ChatifyBootData
         $broadcastKey = $broadcast['key'] ?? ($connConfig['key'] ?? env('REVERB_APP_KEY', env('PUSHER_APP_KEY')));
         $broadcastCluster = $broadcast['cluster'] ?? ($connConfig['options']['cluster'] ?? env('PUSHER_APP_CLUSTER', 'mt1'));
         $broadcastHost = $broadcast['wsHost'] ?? ($connConfig['options']['host'] ?? env('REVERB_HOST', env('PUSHER_HOST', '127.0.0.1')));
+        if ($request !== null && ($broadcastHost === '127.0.0.1' || $broadcastHost === 'localhost')) {
+            $reqHost = $request->getHost();
+            if (! empty($reqHost) && $reqHost !== '127.0.0.1' && $reqHost !== 'localhost') {
+                $broadcastHost = $reqHost;
+            }
+        }
         $broadcastPort = (int) ($broadcast['wsPort'] ?? ($connConfig['options']['port'] ?? env('REVERB_PORT', 8080)));
         $broadcastTls = (bool) ($broadcast['forceTLS'] ?? ($connConfig['options']['useTLS'] ?? (env('REVERB_SCHEME', 'http') === 'https')));
 

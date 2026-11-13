@@ -292,7 +292,7 @@ onMounted(async () => {
     <template v-else>
       <ul
         ref="scrollContainer"
-        class="chatify:relative chatify:z-10 chatify:flex chatify:flex-1 chatify:flex-col chatify:overflow-y-auto chatify:px-3 chatify:py-4 chatify:pb-24"
+        class="chatify-message-list-scroll chatify:relative chatify:z-10 chatify:flex chatify:flex-1 chatify:flex-col chatify:overflow-y-auto chatify:px-3 chatify:py-4 chatify:pb-24"
         @contextmenu.prevent
       >
         <MessageOlderSkeleton v-if="activeLoadingOlder" />

@@ -7,7 +7,7 @@ import type { ChatifyUser } from '../../types'
 
 const props = withDefaults(
   defineProps<{
-    size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl'
+    size?: 'xxs' | 'xs' | 'sm' | 'md' | 'lg' | 'xl'
     alt?: string
     src?: string | null
     borderUrl?: string | null
@@ -38,6 +38,8 @@ const sizeClass = computed(() => {
       return 'chatify:h-16 chatify:w-16'
     case 'xs':
       return 'chatify:h-8 chatify:w-8'
+    case 'xxs':
+      return 'chatify:h-6 chatify:w-6'
     default:
       return 'chatify:h-10 chatify:w-10'
   }
@@ -53,6 +55,8 @@ const iconClass = computed(() => {
       return 'chatify:h-8 chatify:w-8'
     case 'xs':
       return 'chatify:h-4 chatify:w-4'
+    case 'xxs':
+      return 'chatify:h-3 chatify:w-3'
     default:
       return 'chatify:h-5 chatify:w-5'
   }
@@ -139,8 +143,9 @@ const showProgress = computed(() => isUploadingCurrent.value && avatarUploadProg
       v-if="borderSrc"
       :src="borderSrc"
       alt=""
-      class="chatify:pointer-events-none chatify:absolute chatify:inset-[-18%] chatify:h-[136%] chatify:w-[136%] chatify:max-w-none chatify:object-contain chatify:z-10"
+      class="chatify-avatar-border chatify:pointer-events-none chatify:absolute chatify:inset-[-10%] chatify:h-[120%] chatify:w-[120%] chatify:max-w-none chatify:object-contain chatify:z-10"
       aria-hidden="true"
     />
+    <slot />
   </div>
 </template>

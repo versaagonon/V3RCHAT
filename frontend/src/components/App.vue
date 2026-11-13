@@ -25,17 +25,23 @@ import { useConnectionStore } from '../stores/connection'
 import { useContactsStore } from '../stores/contacts'
 import { useConversationsStore } from '../stores/conversations'
 import { useMessagesStore } from '../stores/messages'
+import { useNotificationsStore } from '../stores/notifications'
 import { usePresenceStore } from '../stores/presence'
 import { useTypingStore } from '../stores/typing'
 import { useUiStore } from '../stores/ui'
+import { initPwaLifecycle } from '../composables/usePwa'
+import { useVirtualKeyboard } from '../composables/useVirtualKeyboard'
 import AuthPage from './auth/AuthPage.vue'
 import LandingPage from './landing/LandingPage.vue'
 import ChatifyApp from './layout/ChatifyApp.vue'
 import ContactInfoModal from './modals/ContactInfoModal.vue'
+import ProfileInfoModal from './modals/ProfileInfoModal.vue'
 import CreateGroupModal from './modals/CreateGroupModal.vue'
 import ForwardMessageModal from './modals/ForwardMessageModal.vue'
 import GroupInfoModal from './modals/GroupInfoModal.vue'
 import NewChatModal from './modals/NewChatModal.vue'
+import NotificationsModal from './modals/NotificationsModal.vue'
+import PwaInstallModal from './modals/PwaInstallModal.vue'
 import SettingsModal from './modals/SettingsModal.vue'
 import ConfirmDialog from './ui/ConfirmDialog.vue'
 import ToastHost from './ui/ToastHost.vue'
@@ -43,6 +49,9 @@ import ToastHost from './ui/ToastHost.vue'
 const props = defineProps<{
   config: BootConfig
 }>()
+
+initPwaLifecycle()
+useVirtualKeyboard()
 
 const isLandingMode = computed(() => props.config.authMode === 'landing')
 const isAuthMode = computed(() => !isLandingMode.value && (!props.config.user || Boolean(props.config.authMode)))
@@ -53,6 +62,7 @@ const connectionStore = useConnectionStore()
 const conversationsStore = useConversationsStore()
 const messagesStore = useMessagesStore()
 const contactsStore = useContactsStore()
+const notificationsStore = useNotificationsStore()
 const presenceStore = usePresenceStore()
 const typingStore = useTypingStore()
 const uiStore = useUiStore()
@@ -85,6 +95,7 @@ async function resyncAfterReconnect() {
       conversationsStore.fetchAll(),
       contactsStore.fetchFavorites(),
       contactsStore.fetchBlocked(),
+      notificationsStore.fetchNotifications(),
     ])
     seedPresenceFromConversations()
 
@@ -258,6 +269,9 @@ function setupInboxSubscription() {
       onUserBlockChanged: (payload) => {
         contactsStore.handleUserBlockChanged(payload as UserBlockChangedPayload, currentUser.id)
       },
+      onNotificationReceived: (payload) => {
+        notificationsStore.handleIncomingNotification(payload)
+      },
     },
   )
 }
@@ -324,6 +338,24 @@ function onVisibilityChange() {
 }
 
 onMounted(async () => {
+  // PWA Isolation: Prevent installed PWA from exposing public website landing page (/)
+  const isStandalone = typeof window !== 'undefined' && (
+    (typeof window.matchMedia === 'function' ? window.matchMedia('(display-mode: standalone)').matches : false) ||
+    (window.navigator as unknown as { standalone?: boolean })?.standalone === true ||
+    (typeof document !== 'undefined' && Boolean(document.referrer?.includes('android-app://'))) ||
+    Boolean(window.location?.search && new URLSearchParams(window.location.search).get('pwa') === '1')
+  )
+
+  if (isStandalone && isLandingMode.value) {
+    if (props.config.user) {
+      window.location.replace(props.config.webBase ?? '/v3rchat')
+      return
+    } else {
+      window.location.replace(props.config.loginUrl ?? '/login?pwa=1')
+      return
+    }
+  }
+
   if (isExternalView.value) {
     return
   }
@@ -352,6 +384,7 @@ onMounted(async () => {
     conversationsStore.fetchAll(),
     contactsStore.fetchFavorites(),
     contactsStore.fetchBlocked(),
+    notificationsStore.fetchNotifications(),
   ])
 
   seedPresenceFromConversations()
@@ -425,11 +458,14 @@ watch(
   <template v-else>
     <ChatifyApp />
     <ContactInfoModal />
+    <ProfileInfoModal />
     <GroupInfoModal />
     <CreateGroupModal />
     <NewChatModal />
     <ForwardMessageModal />
     <SettingsModal />
+    <NotificationsModal />
+    <PwaInstallModal />
     <ConfirmDialog />
     <ToastHost />
   </template>

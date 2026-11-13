@@ -35,7 +35,18 @@ class UserProfileController extends Controller
             $settingsService->update(
                 $user,
                 ['reset_avatar' => $request->boolean('reset_avatar')],
-                $request->file('avatar')
+                $request->file('avatar'),
+            );
+        }
+
+        // 1b. Handle profile banner changes or reset
+        if ($request->hasFile('profile_banner') || $request->boolean('reset_profile_banner')) {
+            $settingsService->update(
+                $user,
+                ['reset_profile_banner' => $request->boolean('reset_profile_banner')],
+                null,
+                null,
+                $request->hasFile('profile_banner') ? $request->file('profile_banner') : null,
             );
         }
 

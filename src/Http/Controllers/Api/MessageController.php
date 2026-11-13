@@ -125,7 +125,13 @@ class MessageController extends Controller
     ): JsonResponse {
         $this->authorize('view', $conversation);
 
-        $source = Message::query()->findOrFail($request->string('message_id')->toString());
+        $source = Message::query()
+            ->whereKey($request->string('message_id')->toString())
+            ->whereIn('conversation_id', fn ($q) => $q->select('conversation_id')
+                ->from(config('chatify.tables.participants', 'ch_conversation_participants'))
+                ->where('user_id', $request->user()->getKey()))
+            ->firstOrFail();
+
         $message = $action->handle($conversation, $source, $request->user());
 
         return (new MessageResource($message))->response()->setStatusCode(201);

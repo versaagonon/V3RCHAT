@@ -33,7 +33,7 @@ const avatarUrl = computed(() =>
 <template>
   <button
     type="button"
-    class="chatify-list-item chatify:flex chatify:w-full chatify:items-center chatify:gap-3 chatify:px-4 chatify:py-3 chatify:text-start"
+    class="chatify-list-item chatify:flex chatify:w-full chatify:items-center chatify:gap-3 chatify:px-4 chatify:py-2 chatify:text-start"
     :class="{ 'chatify-list-item-active': active }"
     @click="$emit('select')"
   >

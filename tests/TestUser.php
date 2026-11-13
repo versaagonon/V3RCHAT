@@ -29,6 +29,16 @@ class TestUser extends Authenticatable
         )->withTimestamps();
     }
 
+    public function nameplates(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(
+            \Chatify\Models\Nameplate::class,
+            'user_nameplates',
+            'user_id',
+            'nameplate_id'
+        )->withTimestamps();
+    }
+
     public function isAdmin(): bool
     {
         return ($this->role ?? 'node') === 'admin';

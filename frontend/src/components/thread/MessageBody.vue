@@ -113,20 +113,13 @@ watch(
 
 <template>
   <div>
-    <p class="chatify-message-body chatify:whitespace-pre-wrap chatify:break-words chatify:text-sm">
-      <template v-for="(segment, index) in segments" :key="index">
-        <span v-if="segment.type === 'text'">{{ segment.value }}</span>
-        <a
+    <p class="chatify-message-body chatify:whitespace-pre-wrap chatify:break-words chatify:text-sm"><template v-for="(segment, index) in segments" :key="index"><span v-if="segment.type === 'text'">{{ segment.value }}</span><a
           v-else
           :href="segment.href"
           target="_blank"
           rel="noopener noreferrer"
           class="chatify:text-chatify-primary chatify:underline"
-        >
-          {{ segment.value }}
-        </a>
-      </template>
-    </p>
+        >{{ segment.value }}</a></template><slot name="meta" /></p>
 
     <template v-if="showPreviewSlot">
       <LinkPreviewSkeleton v-if="previewLoading" />

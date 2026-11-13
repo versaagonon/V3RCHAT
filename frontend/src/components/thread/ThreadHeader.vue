@@ -13,6 +13,7 @@ import { storeToRefs } from 'pinia'
 import { connectionStatusLabel } from '../../utils/connectionLabel'
 import { useChatifyI18n } from '../../composables/useChatifyI18n'
 import LiquidGlassButton from '../ui/LiquidGlassButton.vue'
+import UserNameplate from '../ui/UserNameplate.vue'
 
 const props = defineProps<{
   conversation: ChatifyConversation
@@ -36,6 +37,27 @@ const { t } = useChatifyI18n()
 const isSaved = computed(() => isSavedConversation(props.conversation))
 
 const otherUser = computed(() => props.conversation.relationships.other_user)
+
+/**
+ * Counterparty nameplate for the header backdrop.
+ *
+ * Mirrors the rules ConversationListItem already applies, so the header can never
+ * leak a plate the list deliberately hides: Saved Messages has no counterparty,
+ * a group has no single plate, and a user who blocked us must not have their
+ * cosmetics rendered for us. Anything else falls back to the plain theme surface.
+ */
+const partnerNameplate = computed(() => {
+  if (isSaved.value) return null
+  if (props.conversation.attributes.conversation_type === 'group') return null
+
+  const user = otherUser.value
+  if (!user) return null
+  if (contactsStore.isMessagingBlocked(user.id) && !contactsStore.isBlockedByMe(user.id)) {
+    return null
+  }
+
+  return user.attributes.nameplate ?? null
+})
 
 const displayName = computed(() => {
   messagingBlockedUserIds.value
@@ -152,129 +174,147 @@ function openInfo(conversation: ChatifyConversation) {
 </script>
 
 <template>
-  <header class="chatify-sidebar-divide chatify:flex chatify:items-center chatify:gap-3 chatify:border-b chatify:bg-chatify-sidebar chatify:px-4 chatify:py-3">
-    <button
-      v-if="showBack"
-      type="button"
-      class="chatify:rounded-full chatify:p-2 chatify:hover:bg-chatify-border"
-      :aria-label="$t('ui.thread.header.back')"
-      @click="$emit('back')"
-    >
-      <svg class="chatify:h-5 chatify:w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-      </svg>
-    </button>
+  <header
+    class="chatify-sidebar-divide chatify:relative chatify:flex chatify:items-center chatify:overflow-hidden chatify:border-b chatify:bg-chatify-sidebar chatify:px-3.5 chatify:py-3"
+    style="padding-top: max(0.75rem, env(safe-area-inset-top, 0.75rem));"
+  >
+    <!-- Counterparty nameplate as the header backdrop. Groups and Saved Messages
+         have no single plate, so they keep the plain theme surface. -->
+    <UserNameplate
+      :nameplate="partnerNameplate"
+      mode="fill"
+      fit="cover"
+    />
 
-    <button
-      v-if="conversation.attributes.conversation_type === 'group' || canOpenDirectInfo"
-      type="button"
-      class="chatify:flex chatify:min-w-0 chatify:flex-1 chatify:cursor-pointer chatify:items-center chatify:gap-3 chatify:text-start"
-      @click="openInfo(conversation)"
-    >
-      <div class="chatify:relative chatify:shrink-0">
-        <div
-          v-if="isSaved"
-          class="chatify:flex chatify:h-10 chatify:w-10 chatify:items-center chatify:justify-center chatify:rounded-full chatify:bg-chatify-primary-dark chatify:text-white"
-        >
-          <svg class="chatify:h-5 chatify:w-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M17 3H7c-1.1 0-2 .9-2 2v16l7-3 7 3V5c0-1.1-.9-2-2-2z" />
-          </svg>
-        </div>
-        <img
-          v-else-if="avatarUrl"
-          :src="avatarUrl"
-          :alt="displayName"
-          class="chatify:h-10 chatify:w-10 chatify:rounded-full chatify:object-cover"
-        />
-        <!-- 1:1 Animated Avatar Border Overlay -->
-        <img
-          v-if="avatarBorderUrl"
-          :src="avatarBorderUrl"
-          alt=""
-          class="chatify:pointer-events-none chatify:absolute chatify:inset-[-18%] chatify:h-[136%] chatify:w-[136%] chatify:max-w-none chatify:object-contain chatify:z-10"
-          aria-hidden="true"
-        />
-        <span
-          v-if="conversation.attributes.conversation_type === 'direct' && otherUser && !contactsStore.isMessagingBlocked(otherUser.id) && presenceStore.visibleOnline(otherUser.id)"
-          class="chatify-presence-dot"
-          :aria-label="$t('ui.thread.header.online')"
-        />
-      </div>
-      <div
-        v-if="!conversationAvatar(conversation, defaultAvatarUrl) && conversation.attributes.conversation_type === 'group'"
-        class="chatify:flex chatify:h-10 chatify:w-10 chatify:items-center chatify:justify-center chatify:rounded-full chatify:bg-chatify-primary-dark chatify:text-white"
+    <div class="chatify:relative chatify:z-10 chatify:flex chatify:w-full chatify:min-w-0 chatify:items-center chatify:gap-2.5">
+      <LiquidGlassButton
+        v-if="showBack"
+        :aria-label="$t('ui.thread.header.back')"
+        :title="$t('ui.thread.header.back')"
+        size="2.35rem"
+        @click="$emit('back')"
       >
         <svg class="chatify:h-5 chatify:w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
         </svg>
-      </div>
+      </LiquidGlassButton>
 
-      <div class="chatify:min-w-0">
-        <p class="chatify:truncate chatify:text-sm chatify:font-semibold">
-          {{ displayName }}
-        </p>
-        <p
-          v-if="threadSubtitle"
-          class="chatify:text-xs chatify:text-chatify-muted"
-          :class="{ 'chatify:animate-pulse': uiState !== 'online' }"
-        >
-          {{ threadSubtitle }}
-        </p>
-      </div>
-    </button>
-
-    <div
-      v-else
-      class="chatify:flex chatify:min-w-0 chatify:flex-1 chatify:items-center chatify:gap-3"
-    >
-      <div class="chatify:relative chatify:shrink-0">
+      <button
+        v-if="conversation.attributes.conversation_type === 'group' || canOpenDirectInfo"
+        type="button"
+        class="chatify:flex chatify:min-w-0 chatify:flex-1 chatify:cursor-pointer chatify:items-center chatify:gap-3 chatify:text-start"
+        @click="openInfo(conversation)"
+      >
+        <div class="chatify:relative chatify:shrink-0">
+          <div
+            v-if="isSaved"
+            class="chatify:flex chatify:h-10 chatify:w-10 chatify:items-center chatify:justify-center chatify:rounded-full chatify:bg-chatify-primary-dark chatify:text-white"
+          >
+            <svg class="chatify:h-5 chatify:w-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M17 3H7c-1.1 0-2 .9-2 2v16l7-3 7 3V5c0-1.1-.9-2-2-2z" />
+            </svg>
+          </div>
+          <img
+            v-else-if="avatarUrl"
+            :src="avatarUrl"
+            :alt="displayName"
+            class="chatify:h-10 chatify:w-10 chatify:rounded-full chatify:object-cover"
+          />
+          <!-- 1:1 Animated Avatar Border Overlay -->
+          <img
+            v-if="avatarBorderUrl"
+            :src="avatarBorderUrl"
+            alt=""
+            class="chatify-avatar-border chatify:pointer-events-none chatify:absolute chatify:inset-[-10%] chatify:h-[120%] chatify:w-[120%] chatify:max-w-none chatify:object-contain chatify:z-10"
+            aria-hidden="true"
+          />
+          <span
+            v-if="conversation.attributes.conversation_type === 'direct' && otherUser && !contactsStore.isMessagingBlocked(otherUser.id) && presenceStore.visibleOnline(otherUser.id)"
+            class="chatify-presence-dot chatify:z-20"
+            :aria-label="$t('ui.thread.header.online')"
+          />
+        </div>
         <div
-          v-if="isSaved"
+          v-if="!conversationAvatar(conversation, defaultAvatarUrl) && conversation.attributes.conversation_type === 'group'"
           class="chatify:flex chatify:h-10 chatify:w-10 chatify:items-center chatify:justify-center chatify:rounded-full chatify:bg-chatify-primary-dark chatify:text-white"
         >
-          <svg class="chatify:h-5 chatify:w-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M17 3H7c-1.1 0-2 .9-2 2v16l7-3 7 3V5c0-1.1-.9-2-2-2z" />
+          <svg class="chatify:h-5 chatify:w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
           </svg>
         </div>
-        <img
-          v-else-if="avatarUrl"
-          :src="avatarUrl"
-          :alt="displayName"
-          class="chatify:h-10 chatify:w-10 chatify:rounded-full chatify:object-cover"
-        />
-        <!-- 1:1 Animated Avatar Border Overlay -->
-        <img
-          v-if="avatarBorderUrl"
-          :src="avatarBorderUrl"
-          alt=""
-          class="chatify:pointer-events-none chatify:absolute chatify:inset-[-18%] chatify:h-[136%] chatify:w-[136%] chatify:max-w-none chatify:object-contain chatify:z-10"
-          aria-hidden="true"
-        />
+
+        <div class="chatify:min-w-0">
+          <p class="chatify:truncate chatify:text-sm chatify:font-semibold">
+            {{ displayName }}
+          </p>
+          <p
+            v-if="threadSubtitle"
+            class="chatify:text-xs chatify:text-chatify-muted"
+            :class="{ 'chatify:animate-pulse': uiState !== 'online' }"
+          >
+            {{ threadSubtitle }}
+          </p>
+        </div>
+      </button>
+
+      <div
+        v-else
+        class="chatify:flex chatify:min-w-0 chatify:flex-1 chatify:items-center chatify:gap-3"
+      >
+        <div class="chatify:relative chatify:shrink-0">
+          <div
+            v-if="isSaved"
+            class="chatify:flex chatify:h-10 chatify:w-10 chatify:items-center chatify:justify-center chatify:rounded-full chatify:bg-chatify-primary-dark chatify:text-white"
+          >
+            <svg class="chatify:h-5 chatify:w-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M17 3H7c-1.1 0-2 .9-2 2v16l7-3 7 3V5c0-1.1-.9-2-2-2z" />
+            </svg>
+          </div>
+          <img
+            v-else-if="avatarUrl"
+            :src="avatarUrl"
+            :alt="displayName"
+            class="chatify:h-10 chatify:w-10 chatify:rounded-full chatify:object-cover"
+          />
+          <!-- 1:1 Animated Avatar Border Overlay -->
+          <img
+            v-if="avatarBorderUrl"
+            :src="avatarBorderUrl"
+            alt=""
+            class="chatify-avatar-border chatify:pointer-events-none chatify:absolute chatify:inset-[-10%] chatify:h-[120%] chatify:w-[120%] chatify:max-w-none chatify:object-contain chatify:z-10"
+            aria-hidden="true"
+          />
+          <span
+            v-if="conversation.attributes.conversation_type === 'direct' && otherUser && !contactsStore.isMessagingBlocked(otherUser.id) && presenceStore.visibleOnline(otherUser.id)"
+            class="chatify-presence-dot chatify:z-20"
+            :aria-label="$t('ui.thread.header.online')"
+          />
+        </div>
+
+        <div class="chatify:min-w-0">
+          <p class="chatify:truncate chatify:text-sm chatify:font-semibold">
+            {{ displayName }}
+          </p>
+          <p
+            v-if="threadSubtitle"
+            class="chatify:text-xs chatify:text-chatify-muted"
+            :class="{ 'chatify:animate-pulse': uiState !== 'online' }"
+          >
+            {{ threadSubtitle }}
+          </p>
+        </div>
       </div>
 
-      <div class="chatify:min-w-0">
-        <p class="chatify:truncate chatify:text-sm chatify:font-semibold">
-          {{ displayName }}
-        </p>
-        <p
-          v-if="threadSubtitle"
-          class="chatify:text-xs chatify:text-chatify-muted"
-          :class="{ 'chatify:animate-pulse': uiState !== 'online' }"
-        >
-          {{ threadSubtitle }}
-        </p>
-      </div>
+      <LiquidGlassButton
+        :aria-label="$t('ui.thread.header.search')"
+        :title="$t('ui.thread.header.search')"
+        size="2.35rem"
+        @click="uiStore.openMessageSearch()"
+      >
+        <svg class="chatify:h-5 chatify:w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+        </svg>
+      </LiquidGlassButton>
     </div>
-
-    <LiquidGlassButton
-      :aria-label="$t('ui.thread.header.search')"
-      :title="$t('ui.thread.header.search')"
-      size="2.35rem"
-      @click="uiStore.openMessageSearch()"
-    >
-      <svg class="chatify:h-5 chatify:w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-      </svg>
-    </LiquidGlassButton>
   </header>
 </template>

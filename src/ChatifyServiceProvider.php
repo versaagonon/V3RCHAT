@@ -64,14 +64,22 @@ class ChatifyServiceProvider extends ServiceProvider
     protected function registerRateLimiters(): void
     {
         RateLimiter::for('chatify-messages', function ($request) {
-            return Limit::perMinute(600)->by($request->user()?->getKey() ?: $request->ip());
+            return Limit::perMinute(60)->by($request->user()?->getKey() ?: $request->ip());
         });
 
         RateLimiter::for('chatify-typing', function ($request) {
-            return Limit::perMinute(180)->by($request->user()?->getKey() ?: $request->ip());
+            return Limit::perMinute(120)->by($request->user()?->getKey() ?: $request->ip());
         });
 
         RateLimiter::for('chatify-uploads', function ($request) {
+            return Limit::perMinute(20)->by($request->user()?->getKey() ?: $request->ip());
+        });
+
+        RateLimiter::for('chatify-link-preview', function ($request) {
+            return Limit::perMinute(20)->by($request->user()?->getKey() ?: $request->ip());
+        });
+
+        RateLimiter::for('chatify-search', function ($request) {
             return Limit::perMinute(30)->by($request->user()?->getKey() ?: $request->ip());
         });
     }

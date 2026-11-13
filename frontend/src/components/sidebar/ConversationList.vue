@@ -206,7 +206,7 @@ async function onMenuSelect(actionId: string) {
 
 <template>
   <div
-    class="chatify:flex-1 chatify:overflow-y-auto"
+    class="chatify:flex-1 chatify:overflow-y-auto chatify-sidebar-scroll-under-dock"
     @contextmenu.prevent
   >
     <ConversationListSkeleton v-if="loading && filteredItems.length === 0" />
@@ -234,7 +234,7 @@ async function onMenuSelect(actionId: string) {
     <template v-else>
       <ul
         v-if="savedItems.length > 0"
-        class="chatify:divide-y chatify:divide-chatify-border"
+        class="chatify:flex chatify:flex-col chatify:gap-y-0.5"
       >
         <li
           v-for="conversation in savedItems"
@@ -255,7 +255,7 @@ async function onMenuSelect(actionId: string) {
         handle=".chatify-conversation-drag-handle"
         :animation="180"
         direction="vertical"
-        class="chatify:divide-y chatify:divide-chatify-border"
+        class="chatify:flex chatify:flex-col chatify:gap-y-0.5"
         @end="onPinReorder"
       >
         <div
@@ -282,7 +282,7 @@ async function onMenuSelect(actionId: string) {
         </div>
       </VueDraggable>
 
-      <ul class="chatify:divide-y chatify:divide-chatify-border">
+      <ul class="chatify:flex chatify:flex-col chatify:gap-y-0.5">
         <li
           v-for="conversation in recentItems"
           :key="conversationListKey(conversation)"

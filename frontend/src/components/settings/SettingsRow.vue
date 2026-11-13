@@ -23,13 +23,13 @@ const { isRtl } = useChatifyDirection()
   <button
     type="button"
     class="chatify-settings-row chatify-list-item chatify:flex chatify:w-full chatify:items-center chatify:justify-between chatify:px-4 chatify:py-3 chatify:text-start chatify:transition disabled:chatify:opacity-50"
-    :class="danger ? 'chatify-settings-row-danger !chatify:text-red-500 hover:!chatify:text-red-400' : ''"
+    :class="danger ? 'chatify-settings-row-danger' : ''"
     :disabled="disabled"
     @click="toggle ? $emit('toggle') : $emit('click')"
   >
     <span
-      class="chatify:flex chatify:items-center chatify:gap-2.5 chatify:text-sm"
-      :class="danger ? '!chatify:text-red-500 chatify:font-medium' : 'chatify:text-chatify-text'"
+      class="chatify:flex chatify:items-center chatify:gap-2.5 chatify:text-sm chatify:font-medium"
+      :class="danger ? '' : 'chatify:text-chatify-text'"
     >
       <slot name="icon" />
       <span>{{ label }}</span>

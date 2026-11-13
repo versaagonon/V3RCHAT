@@ -52,6 +52,11 @@ class AttachmentController extends Controller
 
     public function download(string $filename, Request $request, AttachmentService $attachmentService, ConversationService $conversationService): StreamedResponse|JsonResponse
     {
+        $user = $request->user();
+        if ($user === null) {
+            abort(401);
+        }
+
         $safeName = basename($filename);
         $path = $attachmentService->downloadPath($safeName);
 
@@ -60,7 +65,13 @@ class AttachmentController extends Controller
         }
 
         $message = \Chatify\Support\ChatifyModels::messageClass()::query()
-            ->where('attachment->stored_name', $safeName)
+            ->where(function ($q) use ($safeName) {
+                $q->where('attachment->stored_name', $safeName)
+                    ->orWhereJsonContains('attachment->items', ['stored_name' => $safeName]);
+            })
+            ->whereIn('conversation_id', fn ($q) => $q->select('conversation_id')
+                ->from(config('chatify.tables.participants', 'ch_conversation_participants'))
+                ->where('user_id', $user->getKey()))
             ->first();
 
         if ($message === null) {
@@ -69,6 +80,9 @@ class AttachmentController extends Controller
 
         $this->authorize('view', $message);
 
-        return $attachmentService->storage()->download($path, $safeName);
+        return $attachmentService->storage()->download($path, $safeName, [
+            'Content-Disposition' => 'attachment; filename="'.$safeName.'"',
+            'X-Content-Type-Options' => 'nosniff',
+        ]);
     }
 }

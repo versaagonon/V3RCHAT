@@ -116,8 +116,9 @@ final class MessageService
         int $page = 1,
         ?int $viewerId = null,
     ): LengthAwarePaginator {
+        $term = addcslashes(trim($query), '%_\\');
         $builder = $this->forConversation($conversation, $viewerId)
-            ->where('body', 'like', '%'.$query.'%');
+            ->where('body', 'like', '%'.$term.'%');
 
         return $builder->paginate($perPage, ['*'], 'page', $page);
     }

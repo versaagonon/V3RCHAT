@@ -24,4 +24,14 @@ describe('buildMessageActionItems', () => {
     expect(items.some((item) => item.id === 'edit')).toBe(true)
     expect(items.some((item) => item.id === 'removeForAll')).toBe(false)
   })
+
+  it('allows remove for everyone on other user messages when user is admin', () => {
+    const items = buildMessageActionItems({
+      isOwn: false,
+      isAdmin: true,
+      hasCopyableText: true,
+    })
+    expect(items.some((item) => item.id === 'removeForAll')).toBe(true)
+    expect(items.some((item) => item.id === 'edit')).toBe(false)
+  })
 })

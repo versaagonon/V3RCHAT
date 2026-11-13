@@ -1,6 +1,11 @@
 
 /vendor
+.env
+.env.*
+*.log
 run.bat
 stop.bat
 laporan.md
 catatan.txt
+patchlaporanvuln.md
+laporanvuln.md

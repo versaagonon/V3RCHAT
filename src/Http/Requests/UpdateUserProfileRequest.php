@@ -34,6 +34,7 @@ class UpdateUserProfileRequest extends FormRequest
                 'min:3',
                 'max:50',
                 'regex:/^[a-zA-Z0-9_\-\.]+$/',
+                Rule::notIn(['admin', 'root', 'system', 'v3rchat', 'moderator', 'support', 'owner']),
                 Rule::unique($userClass, 'username')->ignore($userId),
             ],
             'email' => [

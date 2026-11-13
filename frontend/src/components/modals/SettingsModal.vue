@@ -49,8 +49,9 @@ const screensWithFooter = new Set<SettingsScreen>(['themes', 'font', 'wallpaper'
 watch(open, (isOpen) => {
   if (isOpen) {
     configStore.beginDraftSession()
-    screen.value = 'root'
-    screenStack.value = ['root']
+    const targetScreen = (uiStore.modalContext?.screen as SettingsScreen) || 'root'
+    screen.value = targetScreen
+    screenStack.value = targetScreen === 'root' ? ['root'] : ['root', targetScreen]
     draftSnapshots.value = []
   }
 })
@@ -127,7 +128,7 @@ async function saveChanges() {
       <Transition :name="direction === 'forward' ? 'chatify-slide-left' : 'chatify-slide-right'" mode="out-in">
         <div :key="screen" class="chatify:min-h-0 chatify:min-w-0 chatify:w-full">
           <SettingsRootView v-if="screen === 'root'" @navigate="navigate" />
-          <SettingsProfileView v-else-if="screen === 'profile'" @saved="goBack" />
+          <SettingsProfileView v-else-if="screen === 'profile'" />
           <SettingsAdminPanelView v-else-if="screen === 'admin'" />
           <SettingsThemesView v-else-if="screen === 'themes'" />
           <SettingsFontView v-else-if="screen === 'font'" />

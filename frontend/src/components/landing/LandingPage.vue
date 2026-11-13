@@ -3,9 +3,8 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { animate, inView, stagger } from 'motion'
 import type { ChatifyUser } from '../../types'
-import logoImg from '../../assets/images/logo_transparant.png'
 
-const logoUrl = logoImg || '/vendor/chatify/logo_transparant.png'
+const logoUrl = '/vendor/chatify/logo_transparant.png'
 
 defineProps<{
   user?: ChatifyUser | null
@@ -273,7 +272,12 @@ onUnmounted(() => {
       <div class="v3r-nav-inner">
         <a :href="dashboardUrl" class="v3r-brand-logo">
           <div class="v3r-logo-badge">
-            <img :src="logoUrl" alt="V3RCHAT Logo" class="v3r-brand-icon" />
+            <img
+              :src="logoUrl"
+              alt="V3RCHAT Logo"
+              class="v3r-brand-icon"
+              @error="($event.target as HTMLImageElement).src = '/vendor/chatify/logo_transparant.png'"
+            />
           </div>
           <span class="v3r-brand-name">{{ appName || 'V3RCHAT' }}</span>
         </a>
@@ -319,7 +323,12 @@ onUnmounted(() => {
         <!-- Tactical Hero Headline with Sovereign Emblem & Typewriter Engine -->
         <div class="v3r-hero-headline-wrap v3r-hero-reveal" :class="{ 'is-empty-state': isHeadlineEmpty }">
           <div class="v3r-hero-logo-box">
-            <img :src="logoUrl" alt="V3RCHAT Sovereign Emblem" class="v3r-hero-logo" />
+            <img
+              :src="logoUrl"
+              alt="V3RCHAT Sovereign Emblem"
+              class="v3r-hero-logo"
+              @error="($event.target as HTMLImageElement).src = '/vendor/chatify/logo_transparant.png'"
+            />
             <div class="v3r-hero-logo-glow" aria-hidden="true" />
           </div>
           <div class="v3r-hero-title-group">
@@ -344,9 +353,6 @@ onUnmounted(() => {
         <div class="v3r-hero-actions v3r-hero-reveal">
           <a :href="user ? dashboardUrl : loginUrl" class="v3r-cta-primary">
             <span>{{ user ? 'Open Chat Console' : 'Access Terminal' }}</span>
-            <svg width="16" height="16" class="h-4 w-4 cta-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
-            </svg>
           </a>
 
           <a :href="registerUrl" class="v3r-cta-secondary">
@@ -656,9 +662,6 @@ onUnmounted(() => {
           <div class="v3r-cta-buttons">
             <a :href="user ? dashboardUrl : loginUrl" class="v3r-cta-primary">
               <span>{{ user ? 'Return to Console' : 'Launch V3RCHAT Terminal' }}</span>
-              <svg width="16" height="16" class="h-4 w-4 cta-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
-              </svg>
             </a>
             <a :href="registerUrl" class="v3r-cta-secondary">
               <span>Create Account</span>
@@ -672,7 +675,12 @@ onUnmounted(() => {
     <footer class="v3r-footer">
       <div class="v3r-footer-inner">
         <div class="v3r-footer-brand">
-          <img :src="logoUrl" alt="V3RCHAT Logo" class="v3r-footer-logo" />
+          <img
+            :src="logoUrl"
+            alt="V3RCHAT Logo"
+            class="v3r-footer-logo"
+            @error="($event.target as HTMLImageElement).src = '/vendor/chatify/logo_transparant.png'"
+          />
           <div class="v3r-footer-brand-info">
             <span class="brand-text">{{ appName || 'V3RCHAT' }}</span>
             <span class="brand-sub">SOVEREIGN CIPHER LABS // ZERO-LOG DIRECTIVE</span>
@@ -686,7 +694,6 @@ onUnmounted(() => {
         </div>
 
         <div class="v3r-footer-status">
-          <span class="status-node" />
           <span>ANONYM • ZERO METADATA</span>
         </div>
       </div>

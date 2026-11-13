@@ -2,26 +2,34 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useConfigStore } from '../../stores/config'
+import { useToastStore } from '../../stores/toast'
 import { useChatifyI18n } from '../../composables/useChatifyI18n'
-import type { AvatarBorder } from '../../types'
+import type { AvatarBorder, Nameplate, ProfileEffect } from '../../types'
 import UserAvatar from '../ui/UserAvatar.vue'
+import UserNameplate from '../ui/UserNameplate.vue'
 
 const emit = defineEmits<{
   saved: []
 }>()
 
 const configStore = useConfigStore()
+const toastStore = useToastStore()
 const { t } = useChatifyI18n()
 const { user, savedAvatarUrl, avatarUploading } = storeToRefs(configStore)
 
 const fileInput = ref<HTMLInputElement | null>(null)
+const bannerFileInput = ref<HTMLInputElement | null>(null)
+const bannerUploading = ref(false)
 const name = ref(user.value?.attributes.name ?? '')
 const username = ref(user.value?.attributes.username ?? '')
 const email = ref(user.value?.attributes.email ?? '')
 const currentPassword = ref('')
 const showPassword = ref(false)
 const saving = ref(false)
+const saveSuccess = ref(false)
+const saveSuccessMessage = ref<string | null>(null)
 const errors = ref<Record<string, string[]>>({})
+let successTimer: ReturnType<typeof setTimeout> | null = null
 
 // Avatar Borders
 const availableBorders = ref<AvatarBorder[]>([])
@@ -29,21 +37,174 @@ const activeBorderId = ref<number | null>(user.value?.attributes.avatar_border?.
 const previewBorderUrl = ref<string | null>(null)
 const equippingBorder = ref(false)
 
-onMounted(async () => {
-  if (configStore.api) {
-    try {
-      const res = await configStore.api.getUserBorders()
-      availableBorders.value = res.data.data.available_borders
-      activeBorderId.value = res.data.data.active_border_id
-    } catch (e) {
-      console.error('Failed to load user borders', e)
-    }
+// Nameplates (gift-only, mirrors borders)
+const availableNameplates = ref<Nameplate[]>([])
+const activeNameplateId = ref<number | null>(user.value?.attributes.nameplate?.id ?? null)
+const previewNameplateUrl = ref<string | null>(null)
+const equippingNameplate = ref(false)
+const nameplatesError = ref<string | null>(null)
+const bordersError = ref<string | null>(null)
+const loadingPickers = ref(true)
+
+// Profile effects (paired 450x880 APNG, gift-only like nameplates)
+const availableProfileEffects = ref<ProfileEffect[]>([])
+const activeProfileEffectId = ref<number | null>(user.value?.attributes.profile_effect?.id ?? null)
+const equippingProfileEffect = ref(false)
+const profileEffectsError = ref<string | null>(null)
+
+const activeProfileEffectName = computed(
+  () => availableProfileEffects.value.find((e) => e.id === activeProfileEffectId.value)?.name ?? null,
+)
+
+const activeNameplateName = computed(
+  () => availableNameplates.value.find((n) => n.id === activeNameplateId.value)?.name ?? null,
+)
+
+const activeBorderName = computed(
+  () => availableBorders.value.find((b) => b.id === activeBorderId.value)?.name ?? null,
+)
+
+// The combined preview shows a pending equip (preview*) immediately, falling back
+// to whatever is currently equipped.
+const previewNameplate = computed(() => {
+  if (previewNameplateUrl.value) {
+    return { image_url: previewNameplateUrl.value }
   }
+  return availableNameplates.value.find((n) => n.id === activeNameplateId.value) ?? null
 })
+
+const combinedPreviewLabel = computed(() => {
+  const plate = previewNameplate.value ? (activeNameplateName.value || 'Nameplate') : 'No nameplate'
+  const border = (previewBorderUrl.value || activeBorderName.value) ? (activeBorderName.value || 'Border') : 'No border'
+  return `${border} · ${plate}`
+})
+
+const combinedPreviewSubtitle = computed(() => {
+  const parts: string[] = []
+  if (previewBorderUrl.value || activeBorderName.value) parts.push(`${activeBorderName.value || 'border'} equipped`)
+  if (previewNameplate.value) parts.push('nameplate active')
+  return parts.length > 0 ? parts.join(' · ') : 'No decorations equipped'
+})
+
+onMounted(async () => {
+  if (!configStore.api) return
+
+  // Load borders and nameplates independently so one failing endpoint cannot
+  // blank out the other picker (a missing table used to swallow both).
+  const [borderResult, nameplateResult, effectResult] = await Promise.allSettled([
+    configStore.api.getUserBorders(),
+    configStore.api.getUserNameplates(),
+    configStore.api.getUserProfileEffects(),
+  ])
+
+  if (borderResult.status === 'fulfilled') {
+    availableBorders.value = borderResult.value.data.data.available_borders ?? []
+    activeBorderId.value = borderResult.value.data.data.active_border_id ?? null
+  } else {
+    console.error('Failed to load user borders', borderResult.reason)
+    bordersError.value = 'Could not load avatar borders.'
+  }
+
+  if (nameplateResult.status === 'fulfilled') {
+    availableNameplates.value = nameplateResult.value.data.data.available_nameplates ?? []
+    activeNameplateId.value = nameplateResult.value.data.data.active_nameplate_id ?? null
+  } else {
+    console.error('Failed to load user nameplates', nameplateResult.reason)
+    nameplatesError.value = 'Could not load nameplates.'
+  }
+
+  if (effectResult.status === 'fulfilled') {
+    availableProfileEffects.value = effectResult.value.data.data.available_profile_effects ?? []
+    activeProfileEffectId.value = effectResult.value.data.data.active_profile_effect_id ?? null
+  } else {
+    console.error('Failed to load user profile effects', effectResult.reason)
+    profileEffectsError.value = 'Could not load profile effects.'
+  }
+
+  loadingPickers.value = false
+})
+
+async function reloadNameplates() {
+  if (!configStore.api) return
+  nameplatesError.value = null
+  try {
+    const res = await configStore.api.getUserNameplates()
+    availableNameplates.value = res.data.data.available_nameplates ?? []
+    activeNameplateId.value = res.data.data.active_nameplate_id ?? null
+  } catch (e) {
+    console.error('Failed to reload nameplates', e)
+    nameplatesError.value = 'Could not load nameplates.'
+  }
+}
+
+async function selectNameplate(nameplate: Nameplate | null) {
+  if (equippingNameplate.value) return
+  equippingNameplate.value = true
+
+  const targetId = nameplate ? nameplate.id : null
+  previewNameplateUrl.value = nameplate ? nameplate.image_url : null
+
+  const res = await configStore.equipNameplate(targetId)
+  if (res.success) {
+    activeNameplateId.value = targetId
+    toastStore.show({
+      message: nameplate ? `Equipped "${nameplate.name}" nameplate!` : 'Nameplate removed.',
+      icon: 'success',
+      placement: 'top',
+    })
+  } else {
+    toastStore.show({
+      message: res.message || 'Failed to equip nameplate.',
+      icon: 'error',
+      placement: 'top',
+    })
+  }
+  previewNameplateUrl.value = null
+  equippingNameplate.value = false
+}
+
+async function reloadProfileEffects() {
+  if (!configStore.api) return
+  profileEffectsError.value = null
+  try {
+    const res = await configStore.api.getUserProfileEffects()
+    availableProfileEffects.value = res.data.data.available_profile_effects ?? []
+    activeProfileEffectId.value = res.data.data.active_profile_effect_id ?? null
+  } catch (e) {
+    console.error('Failed to reload profile effects', e)
+    profileEffectsError.value = 'Could not load profile effects.'
+  }
+}
+
+async function selectProfileEffect(effect: ProfileEffect | null) {
+  if (equippingProfileEffect.value) return
+  equippingProfileEffect.value = true
+
+  const targetId = effect ? effect.id : null
+
+  const res = await configStore.equipProfileEffect(targetId)
+  if (res.success) {
+    activeProfileEffectId.value = targetId
+    toastStore.show({
+      message: effect ? `Equipped "${effect.name}" profile effect!` : 'Profile effect removed.',
+      icon: 'success',
+      placement: 'top',
+    })
+  } else {
+    toastStore.show({
+      message: res.message || 'Failed to equip profile effect.',
+      icon: 'error',
+      placement: 'top',
+    })
+  }
+  equippingProfileEffect.value = false
+}
 
 async function selectBorder(border: AvatarBorder | null) {
   if (equippingBorder.value) return
   equippingBorder.value = true
+  saveSuccess.value = false
+  saveSuccessMessage.value = null
 
   const targetId = border ? border.id : null
   previewBorderUrl.value = border ? border.image_url : null
@@ -51,6 +212,17 @@ async function selectBorder(border: AvatarBorder | null) {
   const res = await configStore.equipAvatarBorder(targetId)
   if (res.success) {
     activeBorderId.value = targetId
+    toastStore.show({
+      message: border ? `Equipped "${border.name}" border!` : 'Avatar border removed.',
+      icon: 'success',
+      placement: 'top',
+    })
+  } else {
+    toastStore.show({
+      message: 'Failed to equip avatar border.',
+      icon: 'error',
+      placement: 'top',
+    })
   }
   previewBorderUrl.value = null
   equippingBorder.value = false
@@ -76,7 +248,9 @@ watch(user, (nextUser) => {
   }
 }, { immediate: true })
 
-const canRemoveAvatar = computed(() => Boolean(savedAvatarUrl.value) && Boolean(user.value?.attributes.avatar))
+const canRemoveAvatar = computed(
+  () => Boolean(savedAvatarUrl.value) && Boolean(user.value?.attributes.avatar_is_custom),
+)
 
 function openAvatarPicker() {
   if (avatarUploading.value || saving.value) {
@@ -91,8 +265,22 @@ async function onFileSelected(event: Event) {
     return
   }
 
-  await configStore.uploadAvatar(file)
+  toastStore.show({
+    message: 'Uploading profile photo...',
+    icon: 'info',
+    placement: 'top',
+    duration: 2000,
+  })
+
+  const success = await configStore.uploadAvatar(file)
   ;(event.target as HTMLInputElement).value = ''
+  if (success) {
+    toastStore.show({
+      message: 'Profile photo updated successfully!',
+      icon: 'success',
+      placement: 'top',
+    })
+  }
 }
 
 async function removeAvatar() {
@@ -100,15 +288,64 @@ async function removeAvatar() {
     return
   }
 
-  await configStore.removeAvatar()
+  const success = await configStore.removeAvatar()
+  if (success) {
+    toastStore.show({
+      message: 'Profile photo removed.',
+      icon: 'success',
+      placement: 'top',
+    })
+  }
+}
+
+function openBannerPicker() {
+  if (bannerUploading.value || saving.value) return
+  bannerFileInput.value?.click()
+}
+
+async function onBannerSelected(event: Event) {
+  const file = (event.target as HTMLInputElement).files?.[0]
+  if (!file) return
+
+  bannerUploading.value = true
+  toastStore.show({ message: 'Uploading profile banner...', icon: 'info', placement: 'top', duration: 2000 })
+
+  const success = await configStore.uploadProfileBanner(file)
+  ;(event.target as HTMLInputElement).value = ''
+  bannerUploading.value = false
+
+  if (success) {
+    toastStore.show({ message: 'Profile banner updated!', icon: 'success', placement: 'top' })
+  }
+}
+
+async function handleRemoveBanner() {
+  if (bannerUploading.value || saving.value) return
+  bannerUploading.value = true
+  const success = await configStore.removeProfileBanner()
+  bannerUploading.value = false
+  if (success) {
+    toastStore.show({ message: 'Profile banner removed.', icon: 'success', placement: 'top' })
+  }
 }
 
 async function handleSave() {
   errors.value = {}
+  saveSuccess.value = false
+  saveSuccessMessage.value = null
+  if (successTimer) {
+    clearTimeout(successTimer)
+    successTimer = null
+  }
 
   // Client-side quick validation
   if (!name.value.trim()) {
     errors.value.name = [t('ui.settings.name_required', 'Name cannot be empty.')]
+    toastStore.show({
+      message: 'Name cannot be empty.',
+      icon: 'error',
+      placement: 'top',
+    })
     return
   }
 
@@ -116,26 +353,57 @@ async function handleSave() {
     errors.value.current_password = [
       t('ui.settings.password_required_for_email', 'Current password is required to change email address.'),
     ]
+    toastStore.show({
+      message: 'Current password is required to change email address.',
+      icon: 'error',
+      placement: 'top',
+    })
     return
   }
 
   saving.value = true
 
-  const result = await configStore.updateProfile({
-    name: name.value.trim(),
-    username: username.value.trim() || null,
-    email: email.value.trim(),
-    current_password: isEmailDirty.value ? currentPassword.value : undefined,
-  })
+  try {
+    const result = await configStore.updateProfile({
+      name: name.value.trim(),
+      username: username.value.trim() || null,
+      email: email.value.trim(),
+      current_password: isEmailDirty.value ? currentPassword.value : undefined,
+    })
 
-  saving.value = false
-
-  if (result.success) {
-    currentPassword.value = ''
-    errors.value = {}
-    emit('saved')
-  } else if (result.errors) {
-    errors.value = result.errors
+    if (result.success) {
+      currentPassword.value = ''
+      errors.value = {}
+      saveSuccess.value = true
+      saveSuccessMessage.value = 'Profile updated successfully! All changes have been saved.'
+      toastStore.show({
+        message: 'Profile saved successfully!',
+        icon: 'success',
+        placement: 'top',
+        duration: 3500,
+      })
+      successTimer = setTimeout(() => {
+        saveSuccess.value = false
+      }, 6000)
+    } else if (result.errors) {
+      errors.value = result.errors
+      const firstError = Object.values(result.errors)[0]?.[0] || 'Failed to update profile.'
+      toastStore.show({
+        message: firstError,
+        icon: 'error',
+        placement: 'top',
+      })
+    }
+  } catch (err: any) {
+    const msg = err?.response?.data?.message || 'Failed to update profile.'
+    errors.value = { general: [msg] }
+    toastStore.show({
+      message: msg,
+      icon: 'error',
+      placement: 'top',
+    })
+  } finally {
+    saving.value = false
   }
 }
 </script>
@@ -199,19 +467,151 @@ async function handleSave() {
       </p>
     </div>
 
+    <!-- ── Profile Banner Section ── -->
+    <div class="chatify:space-y-2">
+      <div class="chatify:flex chatify:items-center chatify:justify-between">
+        <div class="chatify:flex chatify:items-center chatify:gap-2">
+          <label class="chatify:text-xs chatify:font-semibold chatify:text-chatify-text">Profile Banner</label>
+        </div>
+        <span class="chatify:text-[10px] chatify:text-chatify-muted">
+          {{ user?.attributes.profile_banner ? 'Custom banner set' : 'None' }}
+        </span>
+      </div>
+
+      <!-- Banner Preview -->
+      <div
+        class="chatify:relative chatify:w-full chatify:overflow-hidden chatify:rounded-xl chatify:border chatify:border-white/10"
+        style="height: 100px;"
+      >
+        <img
+          v-if="user?.attributes.profile_banner"
+          :src="user.attributes.profile_banner"
+          alt="Profile banner"
+          class="chatify:h-full chatify:w-full chatify:object-cover"
+        />
+        <div
+          v-else
+          class="chatify:flex chatify:h-full chatify:w-full chatify:items-center chatify:justify-center chatify:text-chatify-muted"
+          style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 60%, #0f3460 100%);"
+        >
+          <svg class="chatify:h-6 chatify:w-6 chatify:opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+          <span class="chatify:ml-2 chatify:text-xs chatify:opacity-50">No banner set</span>
+        </div>
+
+        <!-- Uploading overlay -->
+        <div
+          v-if="bannerUploading"
+          class="chatify:absolute chatify:inset-0 chatify:flex chatify:items-center chatify:justify-center chatify:bg-black/60 chatify:backdrop-blur-sm"
+        >
+          <svg class="chatify:h-6 chatify:w-6 chatify:animate-spin chatify:text-white" fill="none" viewBox="0 0 24 24">
+            <circle class="chatify:opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+            <path class="chatify:opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+          </svg>
+        </div>
+      </div>
+
+      <!-- Banner Action Buttons -->
+      <div class="chatify:flex chatify:items-center chatify:gap-2">
+        <button
+          type="button"
+          class="chatify:inline-flex chatify:items-center chatify:gap-1.5 chatify:rounded-lg chatify:border chatify:border-white/10 chatify:bg-white/[0.06] chatify:px-3 chatify:py-1.5 chatify:text-xs chatify:font-medium chatify:text-chatify-text chatify:transition hover:chatify:bg-white/[0.12] disabled:chatify:opacity-50"
+          :disabled="bannerUploading || saving"
+          @click="openBannerPicker"
+        >
+          <svg class="chatify:h-3.5 chatify:w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+          </svg>
+          {{ user?.attributes.profile_banner ? 'Change Banner' : 'Upload Banner' }}
+        </button>
+
+        <button
+          v-if="user?.attributes.profile_banner"
+          type="button"
+          class="chatify:inline-flex chatify:items-center chatify:gap-1.5 chatify:rounded-lg chatify:border chatify:border-red-500/20 chatify:bg-red-500/10 chatify:px-3 chatify:py-1.5 chatify:text-xs chatify:font-medium chatify:text-red-400 chatify:transition hover:chatify:bg-red-500/20 disabled:chatify:opacity-50"
+          :disabled="bannerUploading || saving"
+          @click="handleRemoveBanner"
+        >
+          <svg class="chatify:h-3.5 chatify:w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+          </svg>
+          Remove Banner
+        </button>
+
+        <input
+          ref="bannerFileInput"
+          type="file"
+          accept="image/png,image/jpeg,image/jpg,image/gif,image/webp"
+          class="chatify:hidden"
+          @change="onBannerSelected"
+        />
+      </div>
+
+      <p class="chatify:text-[11px] chatify:text-chatify-muted">
+        Recommended size: 1500 × 500px. PNG, JPG, GIF, or WebP.
+      </p>
+    </div>
+
+    <!-- ══ ALL-IN-ONE PREVIEW ══
+         Mirrors a conversation-list row exactly: nameplate as the row background,
+         avatar with its animated border on the left, name + message preview on the
+         right. One source of truth for "what will people see". -->
+    <div class="chatify:space-y-2">
+      <div class="chatify:flex chatify:items-center chatify:justify-between">
+        <label class="chatify:text-xs chatify:font-semibold chatify:text-chatify-text">
+          Preview in chat list
+        </label>
+        <span class="chatify:text-[10px] chatify:text-chatify-muted">
+          {{ combinedPreviewLabel }}
+        </span>
+      </div>
+
+      <!-- The mock row. Same geometry as ConversationListItem. -->
+      <div class="chatify:relative chatify:flex chatify:w-full chatify:items-center chatify:gap-3 chatify:overflow-hidden chatify:rounded-xl chatify:border chatify:border-white/10 chatify:bg-white/[0.04] chatify:px-4 chatify:py-3">
+        <UserNameplate
+          :nameplate="previewNameplate"
+          mode="fill"
+          fit="cover"
+        />
+
+        <div class="chatify:relative chatify:z-10 chatify:shrink-0">
+          <UserAvatar
+            :src="savedAvatarUrl"
+            :alt="name || originalName"
+            :border-url="previewBorderUrl
+              ? previewBorderUrl
+              : (availableBorders.find((b) => b.id === activeBorderId)?.image_url ?? null)"
+            size="sm"
+          />
+        </div>
+
+        <div class="chatify:relative chatify:z-10 chatify:min-w-0 chatify:flex-1">
+          <div class="chatify:flex chatify:items-center chatify:justify-between chatify:gap-2">
+            <p class="chatify:truncate chatify:text-sm chatify:font-medium chatify:text-chatify-text">
+              {{ name || originalName }}
+            </p>
+            <span class="chatify:shrink-0 chatify:text-xs chatify:text-chatify-muted">now</span>
+          </div>
+          <p class="chatify:truncate chatify:text-xs chatify:text-chatify-muted">
+            {{ combinedPreviewSubtitle }}
+          </p>
+        </div>
+      </div>
+
+      <p class="chatify:text-[11px] chatify:text-chatify-muted">
+        This is exactly how your row appears in the conversation list, including the
+        nameplate behind it and the border around your avatar.
+      </p>
+    </div>
+
     <!-- Animated Avatar Border Selector -->
-    <div class="chatify:space-y-2 chatify:rounded-2xl chatify:border chatify:border-white/10 chatify:bg-white/[0.03] chatify:p-3.5">
+    <div class="chatify:space-y-2">
       <div class="chatify:flex chatify:items-center chatify:justify-between">
         <div class="chatify:flex chatify:items-center chatify:gap-2">
           <label class="chatify:text-xs chatify:font-semibold chatify:text-chatify-text">
             Animated Avatar Border
           </label>
-          <span
-            class="chatify:rounded chatify:px-1.5 chatify:py-0.5 chatify:text-[9px] chatify:font-bold chatify:uppercase"
-            :class="(user?.attributes.role ?? 'node') === 'admin' ? 'chatify:bg-amber-400/20 chatify:text-amber-300' : 'chatify:bg-white/10 chatify:text-zinc-400'"
-          >
-            {{ (user?.attributes.role ?? 'node') === 'admin' ? 'Admin All Unlocked' : 'Node Role' }}
-          </span>
         </div>
         <span class="chatify:text-[10px] chatify:text-chatify-muted">
           {{ activeBorderId ? (availableBorders.find((b) => b.id === activeBorderId)?.name || 'Equipped') : 'None' }}
@@ -219,16 +619,16 @@ async function handleSave() {
       </div>
 
       <!-- Border Selection Carousel -->
-      <div v-if="availableBorders.length > 0" class="chatify:flex chatify:gap-2 chatify:overflow-x-auto chatify:py-1 chatify:scrollbar-thin">
+      <div v-if="availableBorders.length > 0" class="chatify:flex chatify:gap-3 chatify:overflow-x-auto chatify:py-1 chatify:scrollbar-thin">
         <!-- Option: None -->
         <button
           type="button"
-          class="chatify:group chatify:relative chatify:flex chatify:h-16 chatify:w-16 chatify:shrink-0 chatify:flex-col chatify:items-center chatify:justify-center chatify:rounded-xl chatify:border chatify:transition"
-          :class="activeBorderId === null ? 'chatify:border-chatify-primary chatify:bg-chatify-primary/10' : 'chatify:border-white/10 chatify:bg-white/[0.04] hover:chatify:bg-white/[0.08]'"
+          class="chatify:group chatify:relative chatify:flex chatify:h-24 chatify:w-24 chatify:shrink-0 chatify:flex-col chatify:items-center chatify:justify-center chatify:rounded-xl chatify:transition"
+          :class="activeBorderId === null ? 'chatify:ring-2 chatify:ring-chatify-primary/60' : 'hover:chatify:opacity-80'"
           :disabled="equippingBorder"
           @click="selectBorder(null)"
         >
-          <span class="chatify:text-xs chatify:font-medium chatify:text-chatify-muted">None</span>
+          <span class="chatify:text-sm chatify:font-medium chatify:text-chatify-muted">None</span>
         </button>
 
         <!-- Option: Each Unlocked Border -->
@@ -236,30 +636,197 @@ async function handleSave() {
           v-for="border in availableBorders"
           :key="border.id"
           type="button"
-          class="chatify:group chatify:relative chatify:flex chatify:h-16 chatify:w-16 chatify:shrink-0 chatify:flex-col chatify:items-center chatify:justify-center chatify:rounded-xl chatify:border chatify:p-1 chatify:transition"
-          :class="activeBorderId === border.id ? 'chatify:border-chatify-primary chatify:bg-chatify-primary/15 chatify:ring-2 chatify:ring-chatify-primary/40' : 'chatify:border-white/10 chatify:bg-white/[0.04] hover:chatify:bg-white/[0.08]'"
+          class="chatify:group chatify:relative chatify:flex chatify:h-24 chatify:w-24 chatify:shrink-0 chatify:flex-col chatify:items-center chatify:justify-center chatify:rounded-xl chatify:p-1 chatify:transition"
+          :class="activeBorderId === border.id ? 'chatify:ring-2 chatify:ring-chatify-primary/60' : 'hover:chatify:opacity-80'"
           :disabled="equippingBorder"
           :title="border.name"
           @click="selectBorder(border)"
         >
-          <div class="chatify:relative chatify:h-9 chatify:w-9">
+          <div class="chatify:relative chatify:h-16 chatify:w-16">
             <div class="chatify:h-full chatify:w-full chatify:rounded-full chatify:bg-zinc-800" />
             <img
               :src="border.image_url"
               :alt="border.name"
-              class="chatify:pointer-events-none chatify:absolute chatify:inset-[-18%] chatify:h-[136%] chatify:w-[136%] chatify:max-w-none chatify:object-contain chatify:z-10"
+              class="chatify-avatar-border chatify:pointer-events-none chatify:absolute chatify:inset-[-10%] chatify:h-[120%] chatify:w-[120%] chatify:max-w-none chatify:object-contain chatify:z-10"
             />
           </div>
-          <span class="chatify:mt-0.5 chatify:w-full chatify:truncate chatify:text-center chatify:text-[9px] chatify:font-medium chatify:text-chatify-text">
+          <span class="chatify:mt-1 chatify:w-full chatify:truncate chatify:text-center chatify:text-[11px] chatify:font-medium chatify:text-chatify-text">
             {{ border.name }}
           </span>
         </button>
       </div>
 
       <!-- Notice when node user has no borders gifted yet -->
-      <div v-else class="chatify:rounded-xl chatify:border chatify:border-white/5 chatify:bg-white/[0.02] chatify:p-3 chatify:text-center">
+      <div v-else class="chatify:py-2 chatify:text-center">
         <p class="chatify:text-xs chatify:text-chatify-muted">
           No animated borders unlocked yet. An administrator can gift exclusive animated borders to your profile.
+        </p>
+      </div>
+    </div>
+
+    <!-- Nameplate Selector (gift-only, mirrors Animated Avatar Border) -->
+    <div class="chatify:space-y-2">
+      <div class="chatify:flex chatify:items-center chatify:justify-between">
+        <div class="chatify:flex chatify:items-center chatify:gap-2">
+          <label class="chatify:text-xs chatify:font-semibold chatify:text-chatify-text">
+            Nameplate
+          </label>
+        </div>
+        <span class="chatify:text-[10px] chatify:text-chatify-muted">
+          {{ activeNameplateName || 'None' }}
+        </span>
+      </div>
+
+      <!-- Equipped nameplate is shown in the all-in-one preview above. -->
+
+      <!-- Nameplate Selection Carousel -->
+      <div v-if="availableNameplates.length > 0" class="chatify:flex chatify:gap-3 chatify:overflow-x-auto chatify:py-1 chatify:scrollbar-thin">
+        <!-- Option: None -->
+        <button
+          type="button"
+          class="chatify:group chatify:relative chatify:flex chatify:h-24 chatify:w-24 chatify:shrink-0 chatify:flex-col chatify:items-center chatify:justify-center chatify:rounded-xl chatify:transition"
+          :class="activeNameplateId === null ? 'chatify:ring-2 chatify:ring-chatify-primary/60' : 'hover:chatify:opacity-80'"
+          :disabled="equippingNameplate"
+          @click="selectNameplate(null)"
+        >
+          <span class="chatify:text-sm chatify:font-medium chatify:text-chatify-muted">None</span>
+        </button>
+
+        <!-- Option: Each Unlocked Nameplate -->
+        <button
+          v-for="plate in availableNameplates"
+          :key="plate.id"
+          type="button"
+          class="chatify:group chatify:relative chatify:flex chatify:h-24 chatify:w-24 chatify:shrink-0 chatify:flex-col chatify:items-center chatify:justify-center chatify:rounded-xl chatify:p-1 chatify:transition"
+          :class="activeNameplateId === plate.id ? 'chatify:ring-2 chatify:ring-chatify-primary/60' : 'hover:chatify:opacity-80'"
+          :disabled="equippingNameplate"
+          :title="plate.name"
+          @click="selectNameplate(plate)"
+        >
+          <span class="chatify-nameplate-preview chatify:flex chatify:w-full chatify:items-center chatify:justify-center">
+            <UserNameplate
+              :nameplate="plate"
+              :name="plate.name"
+              mode="text"
+              width="5.5rem"
+            />
+          </span>
+          <span class="chatify:mt-1 chatify:w-full chatify:truncate chatify:text-center chatify:text-[11px] chatify:font-medium chatify:text-chatify-text">
+            {{ plate.name }}
+          </span>
+        </button>
+      </div>
+
+      <!-- Notice when node user has no nameplates gifted yet -->
+      <div
+        v-else-if="loadingPickers"
+        class="chatify:flex chatify:items-center chatify:justify-center chatify:py-3"
+      >
+        <svg class="chatify:h-4 chatify:w-4 chatify:animate-spin chatify:text-chatify-muted" fill="none" viewBox="0 0 24 24">
+          <circle class="chatify:opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+          <path class="chatify:opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+        </svg>
+      </div>
+
+      <div
+        v-else-if="nameplatesError"
+        class="chatify:flex chatify:flex-col chatify:items-center chatify:gap-2 chatify:rounded-xl chatify:border chatify:border-red-500/25 chatify:bg-red-500/[0.07] chatify:p-3 chatify:text-center"
+      >
+        <p class="chatify:text-xs chatify:text-red-300">{{ nameplatesError }}</p>
+        <button
+          type="button"
+          class="chatify:rounded-lg chatify:border chatify:border-white/15 chatify:bg-white/[0.06] chatify:px-3 chatify:py-1 chatify:text-[11px] chatify:font-medium chatify:text-chatify-text chatify:transition hover:chatify:bg-white/[0.12]"
+          @click="reloadNameplates"
+        >
+          Retry
+        </button>
+      </div>
+
+      <div v-else class="chatify:py-2 chatify:text-center">
+        <p class="chatify:text-xs chatify:text-chatify-muted">
+          No nameplates available. An administrator can gift exclusive nameplates to your profile.
+        </p>
+      </div>
+    </div>
+
+    <!-- Profile Effect Selector (paired 450x880 APNG, gift-only like nameplates) -->
+    <div class="chatify:space-y-2">
+      <div class="chatify:flex chatify:items-center chatify:justify-between">
+        <div class="chatify:flex chatify:items-center chatify:gap-2">
+          <label class="chatify:text-xs chatify:font-semibold chatify:text-chatify-text">
+            Profile Effect
+          </label>
+        </div>
+        <span class="chatify:text-[10px] chatify:text-chatify-muted">
+          {{ activeProfileEffectName || 'None' }}
+        </span>
+      </div>
+
+      <div v-if="availableProfileEffects.length > 0" class="chatify:flex chatify:gap-3 chatify:overflow-x-auto chatify:py-1 chatify:scrollbar-thin">
+        <!-- Option: None -->
+        <button
+          type="button"
+          class="chatify:group chatify:relative chatify:flex chatify:h-28 chatify:w-20 chatify:shrink-0 chatify:flex-col chatify:items-center chatify:justify-center chatify:rounded-xl chatify:transition"
+          :class="activeProfileEffectId === null ? 'chatify:ring-2 chatify:ring-chatify-primary/60' : 'hover:chatify:opacity-80'"
+          :disabled="equippingProfileEffect"
+          @click="selectProfileEffect(null)"
+        >
+          <span class="chatify:text-sm chatify:font-medium chatify:text-chatify-muted">None</span>
+        </button>
+
+        <!-- Option: Each Unlocked Profile Effect -->
+        <button
+          v-for="effect in availableProfileEffects"
+          :key="effect.id"
+          type="button"
+          class="chatify:group chatify:relative chatify:flex chatify:h-28 chatify:w-20 chatify:shrink-0 chatify:flex-col chatify:items-center chatify:justify-center chatify:rounded-xl chatify:p-1 chatify:transition"
+          :class="activeProfileEffectId === effect.id ? 'chatify:ring-2 chatify:ring-chatify-primary/60' : 'hover:chatify:opacity-80'"
+          :disabled="equippingProfileEffect"
+          :title="effect.name"
+          @click="selectProfileEffect(effect)"
+        >
+          <span class="chatify:block chatify:h-20 chatify:w-12 chatify:overflow-hidden chatify:rounded-lg chatify:bg-black/40">
+            <img
+              :src="effect.thumbnail_url"
+              :alt="effect.name"
+              class="chatify:h-full chatify:w-full chatify:object-contain"
+              draggable="false"
+            />
+          </span>
+          <span class="chatify:mt-1 chatify:w-full chatify:truncate chatify:text-center chatify:text-[11px] chatify:font-medium chatify:text-chatify-text">
+            {{ effect.name }}
+          </span>
+        </button>
+      </div>
+
+      <!-- Notice when node user has no profile effects gifted yet -->
+      <div
+        v-else-if="loadingPickers"
+        class="chatify:flex chatify:items-center chatify:justify-center chatify:py-3"
+      >
+        <svg class="chatify:h-4 chatify:w-4 chatify:animate-spin chatify:text-chatify-muted" fill="none" viewBox="0 0 24 24">
+          <circle class="chatify:opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+          <path class="chatify:opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+        </svg>
+      </div>
+
+      <div
+        v-else-if="profileEffectsError"
+        class="chatify:flex chatify:flex-col chatify:items-center chatify:gap-2 chatify:rounded-xl chatify:border chatify:border-red-500/25 chatify:bg-red-500/[0.07] chatify:p-3 chatify:text-center"
+      >
+        <p class="chatify:text-xs chatify:text-red-300">{{ profileEffectsError }}</p>
+        <button
+          type="button"
+          class="chatify:rounded-lg chatify:border chatify:border-white/15 chatify:bg-white/[0.06] chatify:px-3 chatify:py-1 chatify:text-[11px] chatify:font-medium chatify:text-chatify-text chatify:transition hover:chatify:bg-white/[0.12]"
+          @click="reloadProfileEffects"
+        >
+          Retry
+        </button>
+      </div>
+
+      <div v-else class="chatify:py-2 chatify:text-center">
+        <p class="chatify:text-xs chatify:text-chatify-muted">
+          No profile effects available. An administrator can gift exclusive profile effects to your profile.
         </p>
       </div>
     </div>
@@ -275,6 +842,50 @@ async function handleSave() {
       <span>{{ errors.general[0] }}</span>
     </div>
 
+    <!-- Loading Process Notification Banner -->
+    <div
+      v-if="saving"
+      class="chatify:flex chatify:items-center chatify:gap-3 chatify:rounded-xl chatify:border chatify:border-chatify-primary/40 chatify:bg-chatify-primary/10 chatify:p-3.5 chatify:text-xs chatify:text-chatify-text chatify:animate-pulse chatify:shadow-md"
+    >
+      <svg class="chatify:h-5 chatify:w-5 chatify:shrink-0 chatify:animate-spin chatify:text-chatify-primary" fill="none" viewBox="0 0 24 24">
+        <circle class="chatify:opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+        <path class="chatify:opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+      </svg>
+      <div>
+        <div class="chatify:font-semibold">Saving Profile Changes...</div>
+        <div class="chatify:text-[10px] chatify:text-chatify-muted">Please wait while your profile is being updated.</div>
+      </div>
+    </div>
+
+    <!-- Success Notification Popup / Banner -->
+    <Transition name="chatify-fade">
+      <div
+        v-if="saveSuccess"
+        class="chatify:flex chatify:items-center chatify:justify-between chatify:gap-2.5 chatify:rounded-xl chatify:border chatify:border-emerald-500/40 chatify:bg-emerald-500/15 chatify:p-3.5 chatify:text-xs chatify:text-emerald-300 chatify:shadow-lg"
+      >
+        <div class="chatify:flex chatify:items-center chatify:gap-2.5">
+          <div class="chatify:flex chatify:h-7 chatify:w-7 chatify:shrink-0 chatify:items-center chatify:justify-center chatify:rounded-full chatify:bg-emerald-500/20 chatify:text-emerald-400">
+            <svg class="chatify:h-4 chatify:w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+          <div>
+            <div class="chatify:font-bold chatify:text-emerald-200">Profile Saved</div>
+            <div class="chatify:text-[11px] chatify:text-emerald-300/80">{{ saveSuccessMessage || 'All profile changes have been successfully saved.' }}</div>
+          </div>
+        </div>
+        <button
+          type="button"
+          class="chatify:text-emerald-400/80 hover:chatify:text-emerald-200"
+          @click="saveSuccess = false"
+        >
+          <svg class="chatify:h-4 chatify:w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+    </Transition>
+
     <!-- Edit Profile Form -->
     <form class="chatify:space-y-3.5" @submit.prevent="handleSave">
       <!-- 1. Full Name -->
@@ -283,9 +894,6 @@ async function handleSave() {
           <label class="chatify:text-xs chatify:font-medium chatify:text-chatify-text">
             {{ t('ui.settings.name', 'Full Name') }}
           </label>
-          <span class="chatify:inline-flex chatify:items-center chatify:rounded-full chatify:bg-emerald-500/10 chatify:px-2 chatify:py-0.5 chatify:text-[10px] chatify:font-medium chatify:text-emerald-400">
-            No password required
-          </span>
         </div>
         <div class="chatify:relative">
           <div class="chatify:pointer-events-none chatify:absolute chatify:inset-y-0 chatify:left-0 chatify:flex chatify:items-center chatify:pl-3 chatify:text-chatify-muted">
@@ -314,9 +922,6 @@ async function handleSave() {
           <label class="chatify:text-xs chatify:font-medium chatify:text-chatify-text">
             {{ t('ui.settings.username', 'Username') }}
           </label>
-          <span class="chatify:inline-flex chatify:items-center chatify:rounded-full chatify:bg-emerald-500/10 chatify:px-2 chatify:py-0.5 chatify:text-[10px] chatify:font-medium chatify:text-emerald-400">
-            No password required
-          </span>
         </div>
         <div class="chatify:relative">
           <div class="chatify:pointer-events-none chatify:absolute chatify:inset-y-0 chatify:left-0 chatify:flex chatify:items-center chatify:pl-3.5 chatify:text-sm chatify:font-semibold chatify:text-chatify-muted">
@@ -345,12 +950,6 @@ async function handleSave() {
           <label class="chatify:text-xs chatify:font-medium chatify:text-chatify-text">
             {{ t('ui.settings.email', 'Email') }}
           </label>
-          <span
-            class="chatify:inline-flex chatify:items-center chatify:rounded-full chatify:px-2 chatify:py-0.5 chatify:text-[10px] chatify:font-medium"
-            :class="isEmailDirty ? 'chatify:bg-amber-500/15 chatify:text-amber-400 chatify:border chatify:border-amber-500/30' : 'chatify:bg-white/[0.06] chatify:text-chatify-muted'"
-          >
-            {{ isEmailDirty ? 'Password required when changed' : 'Security verified' }}
-          </span>
         </div>
         <div class="chatify:relative">
           <div class="chatify:pointer-events-none chatify:absolute chatify:inset-y-0 chatify:left-0 chatify:flex chatify:items-center chatify:pl-3 chatify:text-chatify-muted">
@@ -432,8 +1031,8 @@ async function handleSave() {
       <div class="chatify:pt-2">
         <button
           type="submit"
-          class="chatify:flex chatify:w-full chatify:items-center chatify:justify-center chatify:gap-2 chatify:rounded-xl chatify:bg-chatify-primary chatify:py-2.5 chatify:px-4 chatify:text-sm chatify:font-semibold chatify:text-white chatify:shadow-lg chatify:shadow-chatify-primary/20 chatify:transition hover:chatify:opacity-95 disabled:chatify:opacity-50"
-          :disabled="saving || !isFormDirty"
+          class="chatify:flex chatify:w-full chatify:items-center chatify:justify-center chatify:gap-2 chatify:rounded-xl chatify:bg-chatify-primary chatify:py-2.5 chatify:px-4 chatify:text-sm chatify:font-semibold chatify:text-black chatify:shadow-lg chatify:shadow-chatify-primary/20 chatify:transition hover:chatify:opacity-95 chatify:disabled:opacity-50 chatify:disabled:cursor-not-allowed"
+          :disabled="saving"
         >
           <svg
             v-if="saving"
@@ -444,7 +1043,16 @@ async function handleSave() {
             <circle class="chatify:opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
             <path class="chatify:opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
           </svg>
-          <span>{{ saving ? t('ui.common.saving', 'Saving...') : t('ui.common.save', 'Save Changes') }}</span>
+          <svg
+            v-else
+            class="chatify:h-4 chatify:w-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+          </svg>
+          <span>{{ saving ? t('ui.common.saving', 'Saving...') : 'Save Changes' }}</span>
         </button>
       </div>
     </form>

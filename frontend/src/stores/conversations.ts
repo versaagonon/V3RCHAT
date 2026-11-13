@@ -9,7 +9,10 @@ import { maskUserIdentity, sanitizeConversationIdentity } from '../utils/userDis
 import { useConfigStore } from './config'
 import { useContactsStore } from './contacts'
 import { useMessagesStore } from './messages'
+import { useNotificationsStore } from './notifications'
 import { useUiStore } from './ui'
+
+export type SidebarTab = 'chats' | 'favorites' | 'settings' | 'notifications'
 
 export const useConversationsStore = defineStore('conversations', () => {
   const items = ref<ChatifyConversation[]>([])
@@ -17,7 +20,7 @@ export const useConversationsStore = defineStore('conversations', () => {
   const loading = ref(false)
   const loadFailed = ref(false)
   const searchQuery = ref('')
-  const sidebarTab = ref<'chats' | 'favorites' | 'settings'>('chats')
+  const sidebarTab = ref<SidebarTab>('chats')
 
   const configStore = useConfigStore()
 
@@ -26,12 +29,26 @@ export const useConversationsStore = defineStore('conversations', () => {
   )
 
   const filteredItems = computed(() => {
+    const pendingRequestConvIds = new Set(
+      useNotificationsStore()
+        .notifications.filter((n) => n.type === 'request' && n.status === 'pending')
+        .map((n) => String(n.data?.conversation_id))
+        .filter(Boolean),
+    )
+
+    const list = items.value.filter((conversation) => {
+      if (pendingRequestConvIds.has(String(conversation.id)) && String(conversation.id) !== String(activeId.value)) {
+        return false
+      }
+      return true
+    })
+
     const q = searchQuery.value.trim().toLowerCase()
     if (!q) {
-      return items.value
+      return list
     }
 
-    return items.value.filter((conversation) => {
+    return list.filter((conversation) => {
       const name =
         isSavedConversation(conversation)
           ? conversation.attributes.saved_title ?? conversation.attributes.name ?? configStore.savedMessagesTitle
@@ -144,9 +161,10 @@ export const useConversationsStore = defineStore('conversations', () => {
       merged.push(local ? mergeConversationState(local, remote) : remote)
     }
 
-    for (const local of items.value) {
-      if (!fetchedById.has(String(local.id))) {
-        merged.push(local)
+    if (activeId.value && !fetchedById.has(String(activeId.value))) {
+      const activeLocal = items.value.find((item) => String(item.id) === String(activeId.value))
+      if (activeLocal) {
+        merged.push(activeLocal)
       }
     }
 
@@ -240,12 +258,13 @@ export const useConversationsStore = defineStore('conversations', () => {
   }
 
   function removeConversation(conversationId: string) {
-    const index = items.value.findIndex((item) => item.id === conversationId)
+    const targetId = String(conversationId)
+    const index = items.value.findIndex((item) => String(item.id) === targetId)
     if (index >= 0) {
       items.value.splice(index, 1)
     }
 
-    if (activeId.value === conversationId) {
+    if (String(activeId.value) === targetId) {
       activeId.value = null
     }
   }
@@ -273,6 +292,16 @@ export const useConversationsStore = defineStore('conversations', () => {
   }
 
   async function select(id: string): Promise<boolean> {
+    /*
+     * Every reply / edit composer state is scoped to the message being answered, so
+     * it must not survive a conversation switch. Otherwise the reply banner for
+     * user A keeps floating over the thread of user B.
+     */
+    if (String(activeId.value) !== String(id)) {
+      useMessagesStore().setReplyTo(null)
+      useMessagesStore().setEditingMessage(null)
+    }
+
     activeId.value = id
     if (!configStore.api) {
       return true
@@ -363,6 +392,27 @@ export const useConversationsStore = defineStore('conversations', () => {
   function handleInboxUpdate(conversation: ChatifyConversation, _currentUserId: number | string) {
     const sanitized = sanitizeForViewer(cloneConversation(conversation))
 
+    // For direct conversations without any messages, never add brand new to recipient's inbox unless creator or active
+    const isDirect = sanitized.attributes.conversation_type === 'direct' || (sanitized.attributes as any).type === 'direct'
+    const hasLastMessage = Boolean(sanitized.relationships.last_message)
+    const isCreator = String((sanitized.relationships as any).creator?.data?.id ?? '') === String(_currentUserId)
+    const isActive = String(activeId.value) === String(sanitized.id)
+    const isExisting = items.value.some((item) => String(item.id) === String(sanitized.id))
+
+    // If recipient has a pending chat request for this direct conversation, do not add to inbox until confirmed
+    if (isDirect) {
+      const hasPendingChatRequest = useNotificationsStore().notifications.some(
+        (n) => n.type === 'request' && n.status === 'pending' && String(n.data?.conversation_id) === String(sanitized.id),
+      )
+      if (hasPendingChatRequest && !isActive) {
+        return
+      }
+    }
+
+    if (isDirect && !hasLastMessage && !isCreator && !isActive && !isExisting) {
+      return
+    }
+
     const isMobile = typeof window !== 'undefined' && window.innerWidth < 768
     const uiStore = useUiStore()
     const isThreadVisible = isMobile ? uiStore.showThreadOnMobile : true
@@ -411,7 +461,7 @@ export const useConversationsStore = defineStore('conversations', () => {
     searchQuery.value = query
   }
 
-  function setSidebarTab(tab: 'chats' | 'favorites' | 'settings') {
+  function setSidebarTab(tab: SidebarTab) {
     sidebarTab.value = tab
   }
 

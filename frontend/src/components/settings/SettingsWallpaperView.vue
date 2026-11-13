@@ -187,7 +187,7 @@ const activePattern = computed(() => {
             <!-- Outgoing message -->
             <div class="chatify:flex chatify:justify-end">
               <div class="chatify:max-w-[85%] chatify:rounded-2xl chatify:rounded-br-sm chatify:bg-chatify-bubble-out chatify:px-3 chatify:py-2 chatify:text-xs chatify:text-white chatify:shadow-md">
-                <p class="chatify:leading-relaxed">Crisp and super readable! 🔥</p>
+                <p class="chatify:leading-relaxed">Crisp and super readable!</p>
                 <div class="chatify:mt-0.5 chatify:flex chatify:items-center chatify:justify-end chatify:gap-1 chatify:text-[9px] chatify:text-white/80">
                   <span>10:43 AM</span>
                   <svg class="chatify:h-3 chatify:w-3" viewBox="0 0 16 16" fill="currentColor">

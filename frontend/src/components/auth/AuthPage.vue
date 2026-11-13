@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import axios from 'axios'
-import logoImg from '../../assets/images/logo_transparant.png'
 
-const logoUrl = logoImg || '/vendor/chatify/logo_transparant.png'
+const logoUrl = '/vendor/chatify/logo_transparant.png'
 
 const props = withDefaults(
   defineProps<{
@@ -129,11 +128,6 @@ async function goToNextStep() {
       } else if (err?.response?.status === 429) {
         generalError.value = 'Too many attempts. Syndicate lockdown active. Please wait.'
       } else {
-        // Fallback check for test environments
-        if (code === 'V3ROURPARTNERSINCE2020') {
-          registerStep.value = 2
-          return
-        }
         generalError.value = 'The provided syndicate access code is invalid.'
       }
     } finally {
@@ -278,7 +272,12 @@ async function handleSubmit(event: Event) {
       <div class="v3rchat-auth-header">
         <div class="v3rchat-auth-logo-wrap">
           <!-- V3RCHAT Sovereign Emblem -->
-          <img :src="logoUrl" alt="V3RCHAT Logo" class="v3rchat-auth-logo" />
+          <img
+            :src="logoUrl"
+            alt="V3RCHAT Logo"
+            class="v3rchat-auth-logo"
+            @error="($event.target as HTMLImageElement).src = '/vendor/chatify/logo_transparant.png'"
+          />
         </div>
         <h1 class="v3rchat-auth-title">{{ appName }}</h1>
         <p class="v3rchat-auth-subtitle">Private Communications</p>
@@ -448,7 +447,7 @@ async function handleSubmit(event: Event) {
             :disabled="loading"
           >
             <span v-if="loading" class="v3rchat-spinner" aria-hidden="true" />
-            <span>{{ loading ? 'Authenticating...' : 'Sign In to V3RCHAT' }}</span>
+            <span>{{ loading ? 'Authenticating...' : 'Sign in' }}</span>
           </button>
         </template>
 
@@ -523,7 +522,6 @@ async function handleSubmit(event: Event) {
             <div class="v3rchat-form-group">
               <label for="v3r-username" class="v3rchat-form-label">
                 <span>Username</span>
-                <span class="v3rchat-optional-tag">HANDLE</span>
               </label>
               <div class="v3rchat-input-wrapper">
                 <svg class="v3rchat-input-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">

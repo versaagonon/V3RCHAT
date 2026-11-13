@@ -13,11 +13,11 @@ final class UpdateGroupConversation
         $updates = [];
 
         if ($name !== null) {
-            $updates['name'] = $name;
+            $updates['name'] = mb_substr(strip_tags(trim($name)), 0, 100);
         }
 
         if ($description !== null) {
-            $updates['description'] = $description;
+            $updates['description'] = mb_substr(strip_tags(trim($description)), 0, 500);
         }
 
         if ($updates !== []) {

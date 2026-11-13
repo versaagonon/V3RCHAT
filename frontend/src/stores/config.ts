@@ -227,6 +227,9 @@ export const useConfigStore = defineStore('config', () => {
         setUserAvatar(nextAvatar)
         savedAvatarUrl.value = nextAvatar
       }
+      if (boot.value?.user) {
+        boot.value.user.attributes.avatar_is_custom = Boolean(data.data.attributes.avatar_is_custom ?? true)
+      }
 
       revokeActiveAvatarPreview()
       return true
@@ -263,6 +266,9 @@ export const useConfigStore = defineStore('config', () => {
       const nextAvatar = url ? cacheBustUrl(url) : ''
       setUserAvatar(nextAvatar)
       savedAvatarUrl.value = nextAvatar || null
+      if (boot.value?.user) {
+        boot.value.user.attributes.avatar_is_custom = Boolean(data.data.attributes.avatar_is_custom)
+      }
       return true
     } catch (err) {
       setUserAvatar(previousAvatar)
@@ -322,7 +328,7 @@ export const useConfigStore = defineStore('config', () => {
       toastStore.show({
         message: chatifyT('ui.settings.profile_updated'),
         icon: 'success',
-        placement: 'bottom',
+        placement: 'top',
       })
 
       return { success: true }
@@ -350,6 +356,42 @@ export const useConfigStore = defineStore('config', () => {
       return { success: true, user: updatedUser }
     } catch (err) {
       const message = extractErrorMessage(err, 'Failed to equip avatar border.')
+      return { success: false, message }
+    }
+  }
+
+  async function equipNameplate(nameplateId: number | null) {
+    if (!api.value) {
+      return { success: false, message: 'API not available' }
+    }
+
+    try {
+      const res = await api.value.equipNameplate(nameplateId)
+      const updatedUser = res.data.data
+      if (boot.value?.user && updatedUser) {
+        boot.value.user.attributes.nameplate = updatedUser.attributes.nameplate
+      }
+      return { success: true, user: updatedUser }
+    } catch (err) {
+      const message = extractErrorMessage(err, 'Failed to equip nameplate.')
+      return { success: false, message }
+    }
+  }
+
+  async function equipProfileEffect(profileEffectId: number | null) {
+    if (!api.value) {
+      return { success: false, message: 'API not available' }
+    }
+
+    try {
+      const res = await api.value.equipProfileEffect(profileEffectId)
+      const updatedUser = res.data.data
+      if (boot.value?.user && updatedUser) {
+        boot.value.user.attributes.profile_effect = updatedUser.attributes.profile_effect
+      }
+      return { success: true, user: updatedUser }
+    } catch (err) {
+      const message = extractErrorMessage(err, 'Failed to equip profile effect.')
       return { success: false, message }
     }
   }
@@ -408,6 +450,50 @@ export const useConfigStore = defineStore('config', () => {
     await api.value.patchSettings({ active_status: enabled })
   }
 
+  async function uploadProfileBanner(file: File): Promise<boolean> {
+    if (!api.value || !boot.value?.user) {
+      return false
+    }
+
+    const toastStore = useToastStore()
+    try {
+      const { data } = await api.value.uploadProfileBanner(file)
+      if (boot.value?.user) {
+        boot.value.user.attributes.profile_banner = data.data.attributes.profile_banner ?? null
+      }
+      return true
+    } catch (err) {
+      toastStore.show({
+        message: extractErrorMessage(err, 'Failed to upload profile banner.'),
+        icon: 'error',
+        placement: 'top',
+      })
+      return false
+    }
+  }
+
+  async function removeProfileBanner(): Promise<boolean> {
+    if (!api.value || !boot.value?.user) {
+      return false
+    }
+
+    const toastStore = useToastStore()
+    try {
+      await api.value.removeProfileBanner()
+      if (boot.value?.user) {
+        boot.value.user.attributes.profile_banner = null
+      }
+      return true
+    } catch (err) {
+      toastStore.show({
+        message: extractErrorMessage(err, 'Failed to remove profile banner.'),
+        icon: 'error',
+        placement: 'top',
+      })
+      return false
+    }
+  }
+
   return {
     boot,
     api,
@@ -457,6 +543,8 @@ export const useConfigStore = defineStore('config', () => {
     removeAvatar,
     updateProfile,
     equipAvatarBorder,
+    equipNameplate,
+    equipProfileEffect,
     stageWallpaper,
     resetDraft,
     restoreDraft,
@@ -464,5 +552,7 @@ export const useConfigStore = defineStore('config', () => {
     beginDraftSession,
     previewDraft,
     setShowOnlineStatus,
+    uploadProfileBanner,
+    removeProfileBanner,
   }
 })

@@ -11,6 +11,9 @@ import { useConfirmStore } from '../../stores/confirm'
 import { useContactsStore } from '../../stores/contacts'
 import { useConversationsStore } from '../../stores/conversations'
 import { useMessagesStore } from '../../stores/messages'
+import { useNotificationsStore } from '../../stores/notifications'
+import { useDraftsStore } from '../../stores/drafts'
+import { useUiStore } from '../../stores/ui'
 import ComposerAttachMenu from './ComposerAttachMenu.vue'
 import StickerPicker from './StickerPicker.vue'
 import VoiceRecorderOverlay from './VoiceRecorderOverlay.vue'
@@ -24,12 +27,92 @@ const configStore = useConfigStore()
 const conversationsStore = useConversationsStore()
 const contactsStore = useContactsStore()
 const confirmStore = useConfirmStore()
+const notificationsStore = useNotificationsStore()
+const uiStore = useUiStore()
 const { t } = useChatifyI18n()
 const { dir } = useChatifyDirection()
 const giphyEnabled = computed(() => configStore.giphyEnabled)
 const { replyToMessage, editingMessage } = storeToRefs(messagesStore)
 
+const pendingRequest = computed(() => {
+  return (
+    notificationsStore.notifications.find(
+      (n) =>
+        n.type === 'request' &&
+        n.status === 'pending' &&
+        (String(n.data?.conversation_id) === String(props.conversationId) ||
+          (n.data?.sender_id &&
+            conversationsStore.activeConversation?.relationships?.other_user?.id &&
+            String(n.data.sender_id) ===
+              String(conversationsStore.activeConversation.relationships.other_user.id))),
+    ) || null
+  )
+})
+
+async function handleConfirmRequest() {
+  if (!pendingRequest.value) return
+  await notificationsStore.confirmRequest(pendingRequest.value.id)
+}
+
+// Sending a message while a chat request is still pending counts as accepting it:
+// confirm the request first, then let the message flow through.
+async function autoConfirmPendingRequest() {
+  const request = pendingRequest.value
+  if (!request) return
+  notificationsStore.notifications = notificationsStore.notifications.map((n) =>
+    n.id === request.id ? { ...n, status: 'accepted' } : n,
+  )
+  await notificationsStore.confirmRequest(request.id)
+}
+
+async function handleDeleteRequest() {
+  if (!pendingRequest.value) return
+  const target = pendingRequest.value
+  const convId = target.data?.conversation_id || props.conversationId
+  const confirmed = await confirmStore.confirm({
+    title: 'Delete Chat Request',
+    message: `Are you sure you want to delete the chat request from ${target.data?.sender_name || 'this user'}? The conversation will be removed.`,
+    confirmLabel: 'Delete',
+    cancelLabel: 'Cancel',
+    variant: 'danger',
+  })
+
+  if (confirmed) {
+    const reqId = target.id
+    if (convId) {
+      conversationsStore.removeConversation(String(convId))
+    }
+    conversationsStore.clearActive()
+    uiStore.hideThread()
+    await notificationsStore.deleteRequest(reqId)
+    await conversationsStore.fetchAll()
+  }
+}
+
 const body = ref('')
+const draftsStore = useDraftsStore()
+
+/*
+ * Draft persistence.
+ *
+ * The composer is destroyed when the user leaves a thread, so the draft cannot live
+ * in this component alone. Restore on mount / conversation change, save on every
+ * edit, and clear once the message actually goes out (see send()).
+ */
+watch(
+  () => props.conversationId,
+  (id) => {
+    const saved = draftsStore.get(id)
+    body.value = saved
+    void nextTick(() => resizeTextarea())
+  },
+  { immediate: true },
+)
+
+watch(body, (value) => {
+  draftsStore.set(props.conversationId, value)
+})
+
 const composerDir = computed(() => (body.value.trim() ? 'auto' : dir.value))
 const attachments = ref<File[]>([])
 const previewUrls = ref<string[]>([])
@@ -307,6 +390,8 @@ async function dispatchSend(options?: {
   const { imageFiles, otherFiles } = splitAttachments(files)
 
   body.value = ''
+  // The message is leaving the composer, so the stored draft is spent.
+  draftsStore.clear(props.conversationId)
   clearAttachments()
   resetTextareaHeight()
   stopTyping({ silent: true })
@@ -325,6 +410,10 @@ async function dispatchSend(options?: {
   }
 
   messagesStore.setReplyTo(null)
+
+  if (pendingRequest.value) {
+    void autoConfirmPendingRequest()
+  }
 
   messagesStore.queueOutboundMessage({
     conversationId: props.conversationId,
@@ -454,6 +543,41 @@ defineExpose({
 
 <template>
   <div class="chatify-composer-floating">
+    <!-- PENDING CHAT REQUEST BANNER (Confirm & Delete) -->
+    <div
+      v-if="pendingRequest"
+      class="chatify-composer-request-banner chatify:pointer-events-auto chatify:mb-1.5 chatify:flex chatify:items-center chatify:justify-between chatify:gap-3 chatify:rounded-2xl chatify:border chatify:border-white/12 chatify:bg-white/[0.06] chatify:px-3.5 chatify:py-2.5 chatify:shadow-lg chatify:backdrop-blur-xl"
+    >
+      <div class="chatify:flex chatify:min-w-0 chatify:flex-1 chatify:items-center chatify:gap-3">
+        <div class="chatify:min-w-0 chatify:flex-1">
+          <p class="chatify:truncate chatify:text-xs chatify:font-bold chatify:text-white">
+            Chat Request from {{ pendingRequest.data?.sender_name || 'User' }}
+          </p>
+          <p class="chatify:truncate chatify:text-[11px] chatify:text-zinc-400">
+            Accept or delete this conversation request
+          </p>
+        </div>
+      </div>
+
+      <div class="chatify:flex chatify:shrink-0 chatify:items-center chatify:gap-2">
+        <button
+          type="button"
+          class="chatify:inline-flex chatify:items-center chatify:gap-1.5 chatify:rounded-xl chatify:bg-blue-600 chatify:px-3.5 chatify:py-2 chatify:text-xs chatify:font-bold chatify:text-white chatify:shadow-md chatify:transition hover:chatify:bg-emerald-500 active:chatify:scale-95"
+          @click="handleConfirmRequest"
+        >
+          <span>Confirm</span>
+        </button>
+
+        <button
+          type="button"
+          class="chatify:inline-flex chatify:items-center chatify:gap-1.5 chatify:rounded-xl chatify:border chatify:border-rose-500/30 chatify:bg-rose-500/15 chatify:px-3.5 chatify:py-2 chatify:text-xs chatify:font-semibold chatify:text-rose-300 chatify:transition hover:chatify:bg-rose-500/25 hover:chatify:border-rose-500/50 active:chatify:scale-95"
+          @click="handleDeleteRequest"
+        >
+          <span>Delete</span>
+        </button>
+      </div>
+    </div>
+
     <div
       v-if="isMessagingBlockedDirect"
       class="chatify-composer-blocked-banner"
@@ -515,7 +639,7 @@ defineExpose({
 
     <!-- SVG Chromatic Aberration & Refraction Filter for Composer -->
     <svg
-      class="liquid-glass-svg-def"
+      class="liquid-glass-svg-def chatify:pointer-events-none chatify:absolute chatify:h-0 chatify:w-0 chatify:opacity-0"
       xmlns="http://www.w3.org/2000/svg"
       aria-hidden="true"
     >
@@ -641,6 +765,7 @@ defineExpose({
       />
 
       <ComposerAttachMenu
+        v-if="!isMessagingBlockedDirect"
         ref="attachMenuRef"
         @pick-media="openMediaPicker"
         @pick-document="openDocumentPicker"
@@ -648,7 +773,7 @@ defineExpose({
       />
 
       <StickerPicker
-        v-if="giphyEnabled"
+        v-if="giphyEnabled && !isMessagingBlockedDirect"
         ref="stickerPickerRef"
         @select="onStickerSelect"
         @open="onStickerPickerOpen"
@@ -659,7 +784,7 @@ defineExpose({
         v-model="body"
         rows="1"
         :dir="composerDir"
-        :placeholder="$t('ui.thread.composer.type_message')"
+        :placeholder="pendingRequest ? 'Reply to accept this chat request...' : $t('ui.thread.composer.type_message')"
         class="chatify-composer-input chatify-composer-floating-input chatify:text-start"
         @keydown="onKeydown"
         @input="onInput"

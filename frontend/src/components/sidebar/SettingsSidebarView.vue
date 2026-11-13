@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import SettingsRootView from '../settings/SettingsRootView.vue'
 import SettingsThemesView from '../settings/SettingsThemesView.vue'
@@ -13,6 +13,7 @@ import type { ChatifyThemePreferences } from '../../themes/types'
 import { useConfigStore } from '../../stores/config'
 import { useSettingsStore } from '../../stores/settings'
 import { useConversationsStore } from '../../stores/conversations'
+import { useUiStore } from '../../stores/ui'
 import { useChatifyI18n } from '../../composables/useChatifyI18n'
 
 type SettingsScreen = 'root' | 'themes' | 'font' | 'wallpaper' | 'blocked' | 'profile' | 'admin'
@@ -20,6 +21,7 @@ type SettingsScreen = 'root' | 'themes' | 'font' | 'wallpaper' | 'blocked' | 'pr
 const configStore = useConfigStore()
 const settingsStore = useSettingsStore()
 const conversationsStore = useConversationsStore()
+const uiStore = useUiStore()
 const { t } = useChatifyI18n()
 const { saving } = storeToRefs(settingsStore)
 const { isDirty } = storeToRefs(configStore)
@@ -40,13 +42,40 @@ const titles = computed<Record<SettingsScreen, string>>(() => ({
 }))
 
 const screensWithFooter = new Set<SettingsScreen>(['themes', 'font', 'wallpaper'])
+const validScreens = new Set<SettingsScreen>(['root', 'themes', 'font', 'wallpaper', 'blocked', 'profile', 'admin'])
+
+// Open the screen a caller asked for (e.g. a gift notification sending the user
+// straight to Profile to equip the border). Falls back to the root screen.
+function applyRequestedScreen() {
+  const requested = uiStore.consumeRequestedSettingsScreen() as SettingsScreen | null
+  if (!requested || !validScreens.has(requested)) return
+
+  if (requested === 'root') {
+    screen.value = 'root'
+    screenStack.value = ['root']
+    return
+  }
+
+  direction.value = 'forward'
+  screen.value = requested
+  screenStack.value = ['root', requested]
+}
 
 onMounted(() => {
   configStore.beginDraftSession()
   screen.value = 'root'
   screenStack.value = ['root']
   draftSnapshots.value = []
+  applyRequestedScreen()
 })
+
+// Handle a request made while this sidebar view is already mounted.
+watch(
+  () => uiStore.requestedSettingsScreen,
+  (requested) => {
+    if (requested) applyRequestedScreen()
+  },
+)
 
 function navigate(next: SettingsScreen) {
   draftSnapshots.value.push(clonePreferences(configStore.draftPreferences))
@@ -118,11 +147,11 @@ async function saveChanges() {
     </div>
 
     <!-- Scrollable content area following sidebar theme -->
-    <div class="chatify:min-h-0 chatify:flex-1 chatify:overflow-y-auto chatify:p-3.5">
+    <div class="chatify:min-h-0 chatify:flex-1 chatify:overflow-y-auto chatify:p-3.5 chatify-sidebar-scroll-under-dock">
       <Transition :name="direction === 'forward' ? 'chatify-slide-left' : 'chatify-slide-right'" mode="out-in">
         <div :key="screen" class="chatify:min-h-0 chatify:min-w-0 chatify:w-full">
           <SettingsRootView v-if="screen === 'root'" @navigate="navigate" />
-          <SettingsProfileView v-else-if="screen === 'profile'" @saved="goBack" />
+          <SettingsProfileView v-else-if="screen === 'profile'" />
           <SettingsAdminPanelView v-else-if="screen === 'admin'" />
           <SettingsThemesView v-else-if="screen === 'themes'" />
           <SettingsFontView v-else-if="screen === 'font'" />
@@ -135,7 +164,7 @@ async function saveChanges() {
     <!-- Footer actions for sub-screens with dirty draft settings -->
     <div
       v-if="screensWithFooter.has(screen)"
-      class="chatify-sidebar-divide chatify:flex chatify:shrink-0 chatify:items-center chatify:justify-end chatify:gap-2 chatify:border-t chatify:bg-chatify-sidebar chatify:px-4 chatify:py-2.5"
+      class="chatify-sidebar-divide chatify:flex chatify:shrink-0 chatify:items-center chatify:justify-end chatify:gap-2 chatify:border-t chatify:bg-chatify-sidebar chatify:px-4 chatify:pt-2.5 chatify-sidebar-footer-above-dock"
     >
       <button
         type="button"

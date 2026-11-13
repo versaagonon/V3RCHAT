@@ -21,11 +21,13 @@ class SendMessageRequest extends FormRequest
             config('chatify.attachments.allowed_files', [])
         );
 
+        $extList = implode(',', $extensions);
+
         return [
             'body' => ['nullable', 'string', 'max:5000', 'required_without_all:attachment,attachments'],
-            'attachment' => ['nullable', 'file', 'max:'.$maxKb, 'extensions:'.implode(',', $extensions)],
+            'attachment' => ['nullable', 'file', 'max:'.$maxKb, 'extensions:'.$extList, 'mimes:'.$extList],
             'attachments' => ['nullable', 'array', 'max:10'],
-            'attachments.*' => ['file', 'max:'.$maxKb, 'extensions:'.implode(',', $extensions)],
+            'attachments.*' => ['file', 'max:'.$maxKb, 'extensions:'.$extList, 'mimes:'.$extList],
             'reply_to_message_id' => ['nullable', 'uuid'],
             'forwarded_from_message_id' => ['nullable', 'uuid'],
         ];

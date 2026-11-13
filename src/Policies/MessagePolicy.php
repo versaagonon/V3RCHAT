@@ -36,6 +36,13 @@ final class MessagePolicy
 
     public function delete(Model $user, Message $message): bool
     {
+        $isAdmin = ($user->role ?? 'node') === 'admin'
+            || (method_exists($user, 'isAdmin') && $user->isAdmin());
+
+        if ($isAdmin) {
+            return true;
+        }
+
         return (int) $message->user_id === (int) $user->getKey()
             && $this->view($user, $message);
     }

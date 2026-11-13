@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use Chatify\Support\ChatifyBootData;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
 
 class LandingPageController extends Controller
@@ -11,8 +13,16 @@ class LandingPageController extends Controller
     /**
      * Display the V3RCHAT sovereign syndicate landing page.
      */
-    public function __invoke(Request $request): View
+    public function __invoke(Request $request): View|RedirectResponse
     {
+        // PWA & Authenticated redirection guards
+        if (Auth::check()) {
+            return redirect()->route('dashboard');
+        }
+
+        if ($request->query('pwa') === '1' || $request->header('X-PWA-Mode') === 'standalone') {
+            return redirect('/login?pwa=1');
+        }
         $assetUrl = config('chatify.frontend.asset_url');
         $assetBase = $assetUrl ?: asset('vendor/chatify');
 

@@ -112,7 +112,7 @@ onMounted(async () => {
       v-if="activeConversation && !messageSearchOpen"
       ref="composerRef"
       :conversation-id="activeConversation.id"
-      class="chatify:absolute chatify:bottom-3 chatify:inset-x-3 chatify:z-30"
+      class="chatify-composer-floating-wrapper"
     />
 
     <ThreadMessageSearch

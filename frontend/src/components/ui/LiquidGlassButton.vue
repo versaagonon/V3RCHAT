@@ -6,12 +6,15 @@ const props = withDefaults(
     ariaLabel?: string
     title?: string
     size?: string
+    /** Optional width override; lets the same glass material render as a pill. */
+    width?: string
     scale?: number
   }>(),
   {
     ariaLabel: '',
     title: '',
     size: '2.5rem',
+    width: '',
     scale: -35,
   },
 )
@@ -30,6 +33,14 @@ const supportsSvgFilter = ref(false)
 const scaleR = computed(() => props.scale - 8)
 const scaleG = computed(() => props.scale)
 const scaleB = computed(() => props.scale + 8)
+
+/**
+ * The SVG chromatic-aberration map is authored for a square icon button.
+ * Wide pills (e.g. the notification "Back" button or the install CTA) would
+ * stretch that square map across the pill, which produces a hard, cut-looking
+ * refraction edge near the right cap. Pills keep the regular blur material.
+ */
+const isPill = computed(() => props.width !== '' && props.width !== props.size)
 
 const mapDataUrl = computed(() => {
   const w = 40
@@ -163,9 +174,9 @@ function onPointerLeave() {
       ref="btnRef"
       type="button"
       class="liquid-glass-btn"
-      :class="{ 'liquid-glass-svg-mode': supportsSvgFilter }"
+      :class="{ 'liquid-glass-svg-mode': supportsSvgFilter && !isPill }"
       :style="{
-        width: size,
+        width: width || size,
         height: size,
         '--filter-id': `url(#${filterId})`,
         '--glare-x': glareX,
@@ -173,7 +184,7 @@ function onPointerLeave() {
         '--glare-opacity': glareOpacity,
       }"
       :aria-label="ariaLabel"
-      :title="title || ariaLabel"
+      :title="title || undefined"
       @click="emit('click', $event)"
       @pointermove="onPointerMove"
       @pointerleave="onPointerLeave"
@@ -196,6 +207,25 @@ function onPointerLeave() {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  /* Never let a cramped flex row squeeze the glass and clip its label. */
+  flex: 0 0 auto;
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform;
+}
+
+/*
+ * Hover/active scaling lives on the wrapper, not on the button.
+ *
+ * Chromium does not repaint a `backdrop-filter` reliably while the same
+ * element is scaled, which left a clipped, "cut" looking snapshot behind the
+ * glass pill. Transforming the wrapper keeps the filter element stable.
+ */
+.liquid-glass-wrapper:hover {
+  transform: translateY(-1.5px) scale(1.07);
+}
+
+.liquid-glass-wrapper:active {
+  transform: translateY(0.5px) scale(0.94);
 }
 
 .liquid-glass-svg-def {
@@ -227,7 +257,7 @@ function onPointerLeave() {
     0 4px 16px rgba(0, 0, 0, 0.32),
     0 8px 24px rgba(0, 0, 0, 0.28),
     0 2px 6px rgba(255, 255, 255, 0.15) inset;
-  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.22s ease, border-color 0.22s ease, background 0.22s ease;
+  transition: box-shadow 0.22s ease, border-color 0.22s ease, background 0.22s ease;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
 }
@@ -238,7 +268,6 @@ function onPointerLeave() {
 }
 
 .liquid-glass-btn:hover {
-  transform: translateY(-1.5px) scale(1.07);
   border-color: rgba(255, 255, 255, 0.65);
   background: color-mix(in srgb, var(--chatify-color-chatify-primary, #ffffff) 30%, transparent);
   box-shadow:
@@ -250,7 +279,6 @@ function onPointerLeave() {
 }
 
 .liquid-glass-btn:active {
-  transform: translateY(0.5px) scale(0.94);
   box-shadow:
     0 0 2px 1px rgba(255, 255, 255, 0.35) inset,
     0 0 6px 2px rgba(255, 255, 255, 0.12) inset,
@@ -291,12 +319,13 @@ function onPointerLeave() {
   width: 100%;
   height: 100%;
   pointer-events: none;
+  white-space: nowrap;
   color: var(--chatify-color-chatify-text, #ffffff);
   filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.4));
   transition: transform 0.2s ease;
 }
 
-.liquid-glass-btn:hover .liquid-glass-content {
+.liquid-glass-wrapper:hover .liquid-glass-content {
   transform: scale(1.04);
 }
 </style>

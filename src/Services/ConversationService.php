@@ -73,7 +73,7 @@ final class ConversationService
             $conversation = ChatifyModels::conversationClass()::query()->create([
                 'id' => (string) Str::uuid(),
                 'type' => Conversation::TYPE_GROUP,
-                'name' => $name,
+                'name' => mb_substr(strip_tags(trim($name)), 0, 100),
                 'created_by' => $ownerId,
             ]);
 
@@ -256,7 +256,8 @@ final class ConversationService
         }
 
         if ($search !== null && $search !== '') {
-            $query->where("{$userTable}.name", 'like', '%'.$search.'%');
+            $escaped = addcslashes(trim($search), '%_\\');
+            $query->where("{$userTable}.name", 'like', '%'.$escaped.'%');
         }
 
         return $query->paginate($perPage);

@@ -42,15 +42,19 @@ class ViteDevHelper
             }
         }
 
-        // Fast probe: 127.0.0.1 first (avoids Windows IPv6 DNS stall), then localhost
-        $socket = @fsockopen($host, $port, $errno, $errstr, 0.4);
-        if (! $socket && $host === '127.0.0.1') {
-            $socket = @fsockopen('localhost', $port, $errno, $errstr, 0.4);
+        // Fast probe: check target host first, fallback to 127.0.0.1
+        $socket = @fsockopen($host, $port, $errno, $errstr, 0.3);
+        if (! $socket && $host !== '127.0.0.1') {
+            $socket = @fsockopen('127.0.0.1', $port, $errno, $errstr, 0.3);
         }
 
         if ($socket) {
             fclose($socket);
-            return "http://{$host}:{$port}";
+            $clientHost = request() ? request()->getHost() : null;
+            $serveHost = (! empty($clientHost) && $clientHost !== '0.0.0.0')
+                ? $clientHost
+                : ($host !== '0.0.0.0' ? $host : '127.0.0.1');
+            return "http://{$serveHost}:{$port}";
         }
 
         return null;

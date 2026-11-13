@@ -114,15 +114,40 @@ body:has(.v3rchat-landing-root) {
   text-align: start;
 }
 
-#chatify-app .chatify-message-body,
-#chatify-app .chatify-message-body * {
+/* Global no-copy guard for the conversation surface. Anything inside the thread
+   panel or a bubble is read-only text; only real inputs stay selectable. */
+#chatify-app .chatify-thread-panel,
+#chatify-app .chatify-thread-panel *,
+#chatify-app .chatify-message-bubble,
+#chatify-app .chatify-message-bubble * {
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+#chatify-app .chatify-thread-panel input,
+#chatify-app .chatify-thread-panel textarea,
+#chatify-app .chatify-thread-panel [contenteditable='true'],
+#chatify-app .chatify-thread-panel input *,
+#chatify-app .chatify-thread-panel textarea * {
   user-select: text;
   -webkit-user-select: text;
+}
+
+/* Message text is deliberately NOT selectable: users read it, they do not lift
+   it. The menu's Copy action still works because it reads the string from data,
+   not from a selection. This overrides the earlier opt-in. */
+#chatify-app .chatify-message-body,
+#chatify-app .chatify-message-body * {
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 
 #chatify-app .chatify-message-body {
   font-size: var(--chatify-text-sm, 0.875rem) !important;
   line-height: 1.45;
+  overflow: hidden;
 }
 
 #chatify-app .chatify-message-meta span {
@@ -443,8 +468,8 @@ body.chatify-dark {
 
 /* Layout Density Rules */
 #chatify-app.chatify-density-compact .chatify-list-item {
-  padding-top: 0.5rem;
-  padding-bottom: 0.5rem;
+  padding-top: 0.375rem;
+  padding-bottom: 0.375rem;
 }
 
 #chatify-app.chatify-density-spacious .chatify-list-item {
@@ -652,12 +677,52 @@ body.chatify-dark {
   border-radius: 999px;
   border: 2px solid var(--chatify-color-chatify-panel);
   background-color: #22c55e;
+  z-index: 25;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.6);
+  pointer-events: none;
 }
 
 .chatify-presence-dot-lg {
   height: 1rem;
   width: 1rem;
   border-width: 2px;
+}
+
+.chatify-avatar-border {
+  pointer-events: none;
+  position: absolute;
+  inset: -10% !important;
+  width: 120% !important;
+  height: 120% !important;
+  max-width: none !important;
+  object-fit: contain;
+  z-index: 10;
+}
+
+/*
+ * Paired 450x880 profile effect. Sits above every modal layer (including the
+ * close button) but never intercepts pointer events, so the card underneath
+ * stays fully interactive. The panel's rounded overflow clips it to the card.
+ */
+.chatify-profile-effect {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  overflow: hidden;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.chatify-profile-effect-img {
+  position: absolute;
+  inset: 0;
+  height: 100%;
+  width: 100%;
+  max-width: none;
+  object-fit: cover;
+  object-position: center;
+  pointer-events: none;
+  user-select: none;
 }
 
 .chatify-settings-toggle {
@@ -790,6 +855,9 @@ body.chatify-dark {
 
 .chatify-list-item {
   transition: background-color 100ms ease;
+  border-radius: 12px;
+  margin-inline: 6px;
+  width: calc(100% - 12px);
 }
 
 .chatify-list-item:hover {
@@ -843,7 +911,8 @@ body.chatify-dark {
 }
 
 .chatify-sidebar-bottom-nav {
-  border-color: color-mix(in srgb, var(--chatify-color-chatify-text) 7%, var(--chatify-color-chatify-sidebar));
+  background: transparent !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
 }
 
 .chatify-bottom-bar {
@@ -852,6 +921,8 @@ body.chatify-dark {
   height: var(--chatify-bottom-bar-height);
   min-height: var(--chatify-bottom-bar-height);
   flex-shrink: 0;
+  background: transparent !important;
+  background-image: none !important;
 }
 
 .chatify-composer-input {
@@ -870,9 +941,95 @@ body.chatify-dark {
   display: none;
 }
 
+/* ─── User Nameplates ───────────────────────────────────────────────
+   Native asset is 448x84 (16:3). Sizing lives in rem so the app-wide
+   UI Scale keeps nameplates proportional to every other element. */
+
+.chatify-user-nameplate {
+  isolation: isolate;
+}
+
+.chatify-user-nameplate-img {
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.55));
+}
+
+.chatify-user-nameplate-label {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: 0.01em;
+  color: #ffffff;
+  text-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.85),
+    0 0 6px rgba(0, 0, 0, 0.6);
+}
+
+.chatify-list-item .chatify-user-nameplate {
+  max-width: 100%;
+}
+
+.chatify-list-item .chatify-user-nameplate-label {
+  font-size: 0.78125rem;
+}
+
+/* ─── Nameplate as conversation-row background (mode="fill") ─────────
+   The plate covers the whole row; content sits on a z-10 layer above it.
+   A light scrim keeps the name/preview/timestamp readable over bright art. */
+
+.chatify-user-nameplate-fill {
+  border-radius: inherit;
+}
+
+.chatify-user-nameplate-fill-img {
+  display: block;
+  object-fit: cover;
+  opacity: 0.95;
+}
+
+.chatify-user-nameplate-fill-scrim {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--chatify-color-chatify-sidebar) 78%, transparent) 0%,
+      color-mix(in srgb, var(--chatify-color-chatify-sidebar) 46%, transparent) 55%,
+      color-mix(in srgb, var(--chatify-color-chatify-sidebar) 24%, transparent) 100%
+    );
+}
+
+.chatify-list-item-active .chatify-user-nameplate-fill-img {
+  opacity: 1;
+}
+
+/* Preview tiles inside the settings/profile pickers */
+.chatify-nameplate-preview {
+  border-radius: 0.75rem;
+  overflow: hidden;
+}
+
+.chatify-nameplate-preview .chatify-user-nameplate-label {
+  font-size: 0.6875rem;
+}
+
 .chatify-composer-thread-list > ul,
 .chatify-composer-thread-list > .chatify\:flex-1 {
-  padding-bottom: 5.5rem;
+  padding-bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px) + var(--app-keyboard-height, 0px));
+}
+
+.chatify-composer-floating-wrapper {
+  position: absolute;
+  inset-inline: 0.75rem;
+  bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px) + var(--app-keyboard-height, 0px));
+  z-index: 30;
+  transition: bottom 120ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@media (max-width: 480px) {
+  .chatify-composer-floating-wrapper {
+    inset-inline: 0.5rem;
+  }
 }
 
 .chatify-composer-floating {
@@ -881,6 +1038,19 @@ body.chatify-dark {
 
 .chatify-composer-floating > * {
   pointer-events: auto;
+}
+
+.liquid-glass-svg-def {
+  position: absolute;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  opacity: 0;
+  z-index: -1;
+}
+
+.chatify-composer-request-banner {
+  margin-bottom: 0.5rem;
 }
 
 .chatify-composer-floating-extras {
@@ -898,21 +1068,21 @@ body.chatify-dark {
   min-height: 3.15rem;
   padding: 0.375rem 0.625rem;
   border-radius: 9999px;
-  background: color-mix(in srgb, var(--chatify-color-chatify-panel, #000000) 25%, transparent);
-  backdrop-filter: blur(20px) saturate(1.8) contrast(1.04);
-  -webkit-backdrop-filter: blur(20px) saturate(1.8) contrast(1.04);
+  background: color-mix(in srgb, var(--chatify-color-chatify-panel, #000000) 8%, transparent);
+  -webkit-backdrop-filter: blur(9px) saturate(1.55) contrast(1.02);
+  backdrop-filter: blur(9px) saturate(1.55) contrast(1.02);
   border: 1px solid rgba(255, 255, 255, 0.16);
   box-shadow:
-    0 10px 30px -10px rgba(0, 0, 0, 0.45),
-    0 4px 16px rgba(0, 0, 0, 0.25);
+    0 10px 30px -10px rgba(0, 0, 0, 0.22),
+    0 4px 16px rgba(0, 0, 0, 0.12);
   transition: border-radius 180ms ease, border-color 200ms ease, box-shadow 200ms ease, background 200ms ease;
   overflow: visible;
   user-select: none;
 }
 
 .chatify-composer-floating-pill.liquid-glass-svg-mode {
-  backdrop-filter: var(--filter-id) blur(2px) saturate(1.4);
-  -webkit-backdrop-filter: var(--filter-id) blur(2px) saturate(1.4);
+  -webkit-backdrop-filter: var(--filter-id) blur(3.5px) saturate(1.4);
+  backdrop-filter: var(--filter-id) blur(3.5px) saturate(1.4);
 }
 
 .chatify-composer-floating-pill-expanded {
@@ -920,17 +1090,17 @@ body.chatify-dark {
 }
 
 #chatify-app.chatify-dark .chatify-composer-floating-pill {
-  background: color-mix(in srgb, var(--chatify-color-chatify-panel, #000000) 30%, transparent);
+  background: color-mix(in srgb, var(--chatify-color-chatify-panel, #000000) 10%, transparent);
   border-color: rgba(255, 255, 255, 0.14);
   box-shadow:
-    0 12px 36px -8px rgba(0, 0, 0, 0.65),
-    0 4px 20px rgba(0, 0, 0, 0.4);
+    0 12px 36px -8px rgba(0, 0, 0, 0.32),
+    0 4px 20px rgba(0, 0, 0, 0.18);
 }
 
 .chatify-composer-floating-pill:focus-within {
   border-color: rgba(255, 255, 255, 0.32);
   box-shadow:
-    0 12px 36px -6px rgba(0, 0, 0, 0.7),
+    0 10px 28px -8px rgba(0, 0, 0, 0.26),
     0 0 0 1px rgba(255, 255, 255, 0.12),
     0 0 16px rgba(255, 255, 255, 0.06);
 }
@@ -1090,6 +1260,13 @@ body.chatify-dark {
   opacity: 0.45;
 }
 
+/* Draft label in the conversation list: brighter than a normal preview and tinted
+   with the accent so an unsent message is obviously yours, not the last received. */
+.chatify-draft-label {
+  font-weight: 600;
+  color: var(--chatify-color-chatify-primary);
+}
+
 .chatify-composer-mic-btn {
   touch-action: none;
 }
@@ -1167,8 +1344,8 @@ body.chatify-dark {
 .chatify-composer-attach-menu {
   min-width: 12.5rem;
   padding: 0.375rem;
-  backdrop-filter: blur(20px) saturate(1.8);
   -webkit-backdrop-filter: blur(20px) saturate(1.8);
+  backdrop-filter: blur(20px) saturate(1.8);
 }
 
 .chatify-composer-attach-item {
@@ -1402,13 +1579,201 @@ body.chatify-dark {
   stroke-width: 2.25;
 }
 
+/* Sidebar Desktop Resizer Handle */
+.chatify-sidebar-resizer {
+  position: absolute;
+  top: 0;
+  right: -5px;
+  width: 10px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+  touch-action: none;
+}
+
+.chatify-sidebar-resizer-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 4px;
+  width: 2px;
+  background: transparent;
+  transition: background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.chatify-sidebar-resizer-grip {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  width: 12px;
+  height: 28px;
+  border-radius: 9999px;
+  background: rgba(24, 24, 27, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+  opacity: 0;
+  transform: scale(0.85);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  pointer-events: none;
+}
+
+.chatify-sidebar-resizer-grip span {
+  display: block;
+  width: 3px;
+  height: 3px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.chatify-sidebar-resizer:hover .chatify-sidebar-resizer-line,
+.chatify-sidebar-resizer.is-resizing .chatify-sidebar-resizer-line {
+  background: color-mix(in srgb, var(--chatify-color-chatify-primary, #ffffff) 50%, #3b82f6);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--chatify-color-chatify-primary, #ffffff) 30%, #3b82f6);
+}
+
+.chatify-sidebar-resizer:hover .chatify-sidebar-resizer-grip,
+.chatify-sidebar-resizer.is-resizing .chatify-sidebar-resizer-grip {
+  opacity: 1;
+  transform: scale(1);
+}
+
+body.chatify-resizing-active {
+  cursor: col-resize !important;
+  user-select: none !important;
+}
+
+body.chatify-resizing-active * {
+  cursor: col-resize !important;
+  user-select: none !important;
+}
+
 /* Floating Liquid Glass Bottom Nav Dock */
 .chatify-sidebar-bottom-dock {
   padding: 0.65rem 0.85rem 0.85rem;
   flex-shrink: 0;
-  background: transparent;
+  background: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  border: none !important;
   position: relative;
   z-index: 10;
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+.chatify-pwa-dock-banner {
+  background: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
+}
+
+/*
+ * Floating bottom area.
+ *
+ * The install banner and navigation dock are absolutely positioned above the
+ * conversation list, so rows scroll behind the glass instead of stopping at a
+ * separate opaque band. Only the glass surfaces receive pointer events; the
+ * transparent gaps let clicks reach the list underneath.
+ */
+.chatify-sidebar-shell {
+  --chatify-sidebar-dock-space: 5.75rem;
+  --chatify-sidebar-dock-space-with-banner: 9.25rem;
+}
+
+.chatify-sidebar-bottom-area {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  pointer-events: none;
+}
+
+.chatify-sidebar-bottom-area .chatify-pwa-dock-banner {
+  margin: 0 0.85rem 0.35rem;
+  pointer-events: auto;
+}
+
+.chatify-sidebar-bottom-area .chatify-sidebar-bottom-nav {
+  pointer-events: auto;
+}
+
+/* Reserve scroll room so the final rows can clear the floating glass. */
+.chatify-sidebar-scroll-under-dock {
+  padding-bottom: calc(var(--chatify-sidebar-dock-space) + env(safe-area-inset-bottom, 0px));
+}
+
+.chatify-sidebar-shell:has(.chatify-pwa-dock-banner) .chatify-sidebar-scroll-under-dock {
+  padding-bottom: calc(var(--chatify-sidebar-dock-space-with-banner) + env(safe-area-inset-bottom, 0px));
+}
+
+/* Keep the fixed settings save bar above the floating dock. */
+.chatify-sidebar-footer-above-dock {
+  padding-bottom: calc(4.6rem + env(safe-area-inset-bottom, 0px));
+}
+
+/*
+ * Liquid glass install banner card.
+ *
+ * The dock itself stays fully transparent; the banner gets the same floating
+ * glass material as the navigation (translucent fill, blur, specular sheen and
+ * chromatic rim) with softly rounded – not pill – corners.
+ */
+.chatify-install-glass {
+  position: relative;
+  overflow: hidden;
+  border-radius: 1rem;
+  background-color: color-mix(in srgb, var(--chatify-color-chatify-primary, #ffffff) 10%, rgba(255, 255, 255, 0.07)) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(1.45);
+  backdrop-filter: blur(18px) saturate(1.45);
+  border: 1px solid rgba(255, 255, 255, 0.16) !important;
+  box-shadow:
+    0 10px 28px -10px rgba(0, 0, 0, 0.5),
+    0 3px 12px rgba(0, 0, 0, 0.28),
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.28);
+}
+
+.chatify-install-glass::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(
+    170deg,
+    rgba(255, 255, 255, 0.18) 0%,
+    rgba(255, 255, 255, 0.04) 42%,
+    transparent 70%
+  );
+  z-index: 0;
+}
+
+.chatify-install-glass::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow:
+    inset 1.5px 1.5px 3px 0 rgba(255, 90, 110, 0.14),
+    inset 0 0 4px 1px rgba(80, 255, 140, 0.07),
+    inset -1.5px -1.5px 3px 0 rgba(60, 170, 255, 0.18);
+  z-index: 0;
+}
+
+.chatify-install-glass > * {
+  position: relative;
+  z-index: 1;
 }
 
 .liquid-glass-floating-nav {
@@ -1416,20 +1781,24 @@ body.chatify-dark {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  width: 100%;
+  max-width: 26rem;
   height: 3.25rem;
   padding: 0.28rem;
   border-radius: 9999px;
-  background: color-mix(in srgb, var(--chatify-color-chatify-sidebar, #09090b) 45%, transparent) !important;
-  backdrop-filter: blur(24px) saturate(1.8) contrast(1.05);
-  -webkit-backdrop-filter: blur(24px) saturate(1.8) contrast(1.05);
-  border: 1px solid rgba(255, 255, 255, 0.16) !important;
+  background: transparent !important;
+  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  backdrop-filter: blur(16px) saturate(1.4);
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
   box-shadow:
-    0 14px 34px -8px rgba(0, 0, 0, 0.65),
-    0 4px 18px rgba(0, 0, 0, 0.4),
-    inset 0 1.5px 1.5px 0 rgba(255, 255, 255, 0.35),
-    inset 0 -1px 1px 0 rgba(0, 0, 0, 0.5);
+    0 4px 20px rgba(0, 0, 0, 0.15),
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.25) !important;
   user-select: none;
   overflow: hidden;
+}
+
+.liquid-glass-floating-nav .chatify-sidebar-nav-item:hover {
+  background-color: transparent !important;
 }
 
 .liquid-glass-floating-nav .liquid-glass-refraction-fringe {
@@ -1495,8 +1864,8 @@ body.chatify-dark {
   border-radius: 9999px;
   background: color-mix(in srgb, var(--chatify-color-chatify-primary, #ffffff) 20%, rgba(255, 255, 255, 0.12));
   border: 1px solid rgba(255, 255, 255, 0.40);
-  backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
   box-shadow:
     inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.7),
     inset 0 0 14px 2px rgba(255, 255, 255, 0.16),
@@ -1533,6 +1902,262 @@ body.chatify-dark {
 
 .chatify-sidebar-bottom-nav .liquid-glass-sliding-pill.pos-settings {
   transform: translateX(200%);
+}
+
+/* 3-Tab Responsive Layout for Notifications Modal Switcher (matching AuthPage floating liquid glass) */
+.v3rchat-notifications-switcher {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 100%;
+  height: 2.85rem;
+  padding: 0.28rem;
+  border-radius: 9999px;
+  background: color-mix(in srgb, #09090b 60%, rgba(0, 0, 0, 0.7)) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(1.8) contrast(1.05);
+  backdrop-filter: blur(24px) saturate(1.8) contrast(1.05);
+  border: 1px solid rgba(255, 255, 255, 0.16) !important;
+  box-shadow:
+    0 14px 34px -8px rgba(0, 0, 0, 0.65),
+    0 4px 18px rgba(0, 0, 0, 0.4),
+    inset 0 1.5px 1.5px 0 rgba(255, 255, 255, 0.35),
+    inset 0 -1px 1px 0 rgba(0, 0, 0, 0.5);
+  user-select: none;
+  overflow: hidden;
+}
+
+.v3rchat-notifications-switcher .liquid-glass-sliding-pill {
+  width: calc((100% - 0.56rem) / 3);
+}
+
+.v3rchat-notifications-switcher .liquid-glass-sliding-pill.pos-all {
+  transform: translateX(0%);
+}
+
+.v3rchat-notifications-switcher .liquid-glass-sliding-pill.pos-info {
+  transform: translateX(100%);
+}
+
+.v3rchat-notifications-switcher .liquid-glass-sliding-pill.pos-request {
+  transform: translateX(200%);
+}
+
+.v3rchat-notifications-switcher .v3rchat-switcher-btn {
+  flex: 1;
+  height: 100%;
+  position: relative;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0 0.5rem;
+  margin: 0;
+  border-radius: 9999px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #a1a1aa;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  cursor: pointer;
+  transition: color 0.25s cubic-bezier(0.16, 1, 0.3, 1), font-weight 0.2s ease, text-shadow 0.25s ease;
+  white-space: nowrap;
+}
+
+.v3rchat-notifications-switcher .v3rchat-switcher-btn:hover {
+  color: #ffffff;
+}
+
+.v3rchat-notifications-switcher .v3rchat-switcher-btn.v3rchat-switcher-active {
+  color: #ffffff !important;
+  font-weight: 600;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.55);
+}
+
+.v3rchat-notifications-switcher .v3rchat-switcher-btn.v3rchat-switcher-active svg {
+  stroke-width: 2.25;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.6));
+}
+
+.v3rchat-notifications-switcher .notification-tab-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.15rem;
+  height: 1.15rem;
+  padding: 0 0.35rem;
+  border-radius: 9999px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  line-height: 1;
+  background: rgba(255, 255, 255, 0.12);
+  color: #d4d4d8;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: all 0.2s ease;
+}
+
+.v3rchat-notifications-switcher .v3rchat-switcher-active .notification-tab-badge {
+  background: rgba(255, 255, 255, 0.22);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.v3rchat-notifications-switcher .notification-tab-badge.is-highlight {
+  background: rgba(245, 158, 11, 0.25);
+  color: #fbbf24;
+  border-color: rgba(245, 158, 11, 0.35);
+}
+
+.v3rchat-notifications-switcher .notification-tab-badge.is-alert {
+  background: rgba(59, 130, 246, 0.25);
+  color: #93c5fd;
+  border-color: rgba(59, 130, 246, 0.35);
+}
+
+/*
+ * Liquid glass surface for the notification cards in the sidebar list.
+ * Mirrors the floating bottom-nav material: translucent fill, backdrop blur,
+ * specular top-left gradient, chromatic refraction fringe and a rim highlight.
+ */
+.chatify-notification-card {
+  position: relative;
+  overflow: hidden;
+  background-color: rgba(255, 255, 255, 0.05) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  backdrop-filter: blur(16px) saturate(1.4);
+  box-shadow:
+    0 4px 20px rgba(0, 0, 0, 0.18),
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.22);
+}
+
+.chatify-notification-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(
+    170deg,
+    rgba(255, 255, 255, 0.16) 0%,
+    rgba(255, 255, 255, 0.03) 40%,
+    transparent 65%
+  );
+  box-shadow:
+    inset 1.5px 1.5px 3px 0 rgba(255, 90, 110, 0.16),
+    inset 0 0 4px 1px rgba(80, 255, 140, 0.08),
+    inset -1.5px -1.5px 3px 0 rgba(60, 170, 255, 0.2);
+  z-index: 0;
+}
+
+.chatify-notification-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow:
+    inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.4),
+    inset 0 -1px 1px 0 rgba(0, 0, 0, 0.45);
+  z-index: 0;
+}
+
+/* Keep card content above the glass overlay layers. */
+.chatify-notification-card > * {
+  position: relative;
+  z-index: 1;
+}
+
+.chatify-notification-card:hover {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Accent tints keep the request / unread meaning inside the glass surface. */
+.chatify-notification-card.chatify-notification-card-request {
+  background-color: rgba(59, 130, 246, 0.07) !important;
+}
+
+.chatify-notification-card.chatify-notification-card-request:hover {
+  background-color: rgba(59, 130, 246, 0.12) !important;
+}
+
+.chatify-notification-card.chatify-notification-card-unread {
+  background-color: rgba(245, 158, 11, 0.07) !important;
+}
+
+.chatify-notification-card.chatify-notification-card-unread:hover {
+  background-color: rgba(245, 158, 11, 0.12) !important;
+}
+
+/*
+ * Notifications overflow menu (kebab in the sidebar header).
+ * Floating glass card matching the notification cards.
+ */
+.chatify-notification-menu {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  inset-inline-end: 0;
+  z-index: 60;
+  display: flex;
+  min-width: 12.75rem;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.3rem;
+  border-radius: 0.9rem;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background-color: color-mix(in srgb, var(--chatify-color-chatify-bubble-in, #18181b) 82%, rgba(255, 255, 255, 0.08));
+  -webkit-backdrop-filter: blur(18px) saturate(1.45);
+  backdrop-filter: blur(18px) saturate(1.45);
+  box-shadow:
+    0 18px 42px -12px rgba(0, 0, 0, 0.72),
+    0 4px 14px rgba(0, 0, 0, 0.36),
+    inset 0 1px 1px rgba(255, 255, 255, 0.22);
+  transform-origin: top right;
+}
+
+.chatify-notification-menu-item {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 0.55rem;
+  border-radius: 0.65rem;
+  padding: 0.5rem 0.6rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--chatify-color-chatify-text, #ffffff);
+  text-align: start;
+  transition: background-color 0.15s ease, color 0.15s ease, opacity 0.15s ease;
+}
+
+.chatify-notification-menu-item:hover:not(:disabled) {
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+.chatify-notification-menu-item.is-danger {
+  color: #fda4af;
+}
+
+.chatify-notification-menu-item.is-danger:hover:not(:disabled) {
+  background-color: rgba(244, 63, 94, 0.16);
+  color: #fecdd3;
+}
+
+.chatify-notification-menu-item:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.chatify-notification-menu-pop-enter-active,
+.chatify-notification-menu-pop-leave-active {
+  transition: opacity 0.16s ease, transform 0.16s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.chatify-notification-menu-pop-enter-from,
+.chatify-notification-menu-pop-leave-to {
+  opacity: 0;
+  transform: translateY(-4px) scale(0.97);
 }
 
 .liquid-glass-sliding-pill .sliding-pill-glow {
@@ -1597,15 +2222,72 @@ body.chatify-dark {
   filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.6));
 }
 
+/*
+ * Liquid glass settings menu container.
+ *
+ * Same material family as the notification cards and floating nav: translucent
+ * fill, backdrop blur, specular top-left sheen and a chromatic rim highlight.
+ * The fill is mixed from the theme text colour so it also reads correctly on
+ * light themes instead of washing out into the panel background.
+ */
 .chatify-settings-group {
-  border: 1px solid color-mix(in srgb, var(--chatify-color-chatify-text) 7%, var(--chatify-color-chatify-bubble-in));
-  border-radius: 0.75rem;
+  position: relative;
+  border: 1px solid color-mix(in srgb, var(--chatify-color-chatify-text, #ffffff) 14%, transparent);
+  border-radius: 1rem;
   overflow: hidden;
-  background-color: var(--chatify-color-chatify-bubble-in);
+  background-color: color-mix(in srgb, var(--chatify-color-chatify-text, #ffffff) 5%, transparent);
+  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  backdrop-filter: blur(16px) saturate(1.4);
+  box-shadow:
+    0 10px 28px -14px rgba(0, 0, 0, 0.6),
+    0 3px 12px rgba(0, 0, 0, 0.22),
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.chatify-settings-group::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(
+    170deg,
+    rgba(255, 255, 255, 0.16) 0%,
+    rgba(255, 255, 255, 0.03) 40%,
+    transparent 65%
+  );
+  box-shadow:
+    inset 1.5px 1.5px 3px 0 rgba(255, 90, 110, 0.16),
+    inset 0 0 4px 1px rgba(80, 255, 140, 0.08),
+    inset -1.5px -1.5px 3px 0 rgba(60, 170, 255, 0.2);
+  z-index: 0;
+}
+
+.chatify-settings-group::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow:
+    inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.4),
+    inset 0 -1px 1px 0 rgba(0, 0, 0, 0.45);
+  z-index: 0;
+}
+
+/* Keep the menu rows above the glass overlay layers. */
+.chatify-settings-group > * {
+  position: relative;
+  z-index: 1;
 }
 
 .chatify-settings-row + .chatify-settings-row {
-  border-top: 1px solid color-mix(in srgb, var(--chatify-color-chatify-text) 7%, var(--chatify-color-chatify-bubble-in));
+  border-top: 1px solid color-mix(in srgb, var(--chatify-color-chatify-text, #ffffff) 8%, transparent);
+}
+
+/* Row hover stays translucent so the glass behind the row keeps showing. */
+.chatify-settings-row:hover:not(:disabled) {
+  background-color: color-mix(in srgb, var(--chatify-color-chatify-text, #ffffff) 7%, transparent);
 }
 
 /* Sidebar Settings Panel - Follows Active Sidebar Theme */
@@ -1615,8 +2297,8 @@ body.chatify-dark {
 }
 
 .chatify-sidebar-settings .chatify-settings-group {
-  background-color: color-mix(in srgb, var(--chatify-color-chatify-text) 5%, var(--chatify-color-chatify-sidebar));
-  border: 1px solid color-mix(in srgb, var(--chatify-color-chatify-text) 8%, var(--chatify-color-chatify-sidebar));
+  background-color: color-mix(in srgb, var(--chatify-color-chatify-text) 5%, transparent);
+  border-color: color-mix(in srgb, var(--chatify-color-chatify-text) 14%, transparent);
 }
 
 .chatify-sidebar-settings .chatify-settings-row {
@@ -1624,11 +2306,58 @@ body.chatify-dark {
 }
 
 .chatify-sidebar-settings .chatify-settings-row + .chatify-settings-row {
-  border-top: 1px solid color-mix(in srgb, var(--chatify-color-chatify-text) 8%, var(--chatify-color-chatify-sidebar));
+  border-top: 1px solid color-mix(in srgb, var(--chatify-color-chatify-text) 8%, transparent);
 }
 
 .chatify-sidebar-settings .chatify-settings-row:hover:not(:disabled) {
-  background-color: color-mix(in srgb, var(--chatify-color-chatify-text) 8%, var(--chatify-color-chatify-sidebar));
+  background-color: color-mix(in srgb, var(--chatify-color-chatify-text) 7%, transparent);
+}
+
+/*
+ * Settings sidebar menu sizing.
+ *
+ * SettingsRow is shared with the wide settings modal, but inside the narrow
+ * sidebar the default row (14px label, 16px icons) reads a touch smaller than
+ * the sidebar's own navigation at the default 100% UI scale. Nudge only the
+ * sidebar menu up ~8% here. Every value stays in rem/calc, so the menu keeps
+ * following the user's Layout & Fonts scale setting.
+ */
+.chatify-sidebar-settings {
+  --chatify-settings-menu-boost: 1.08;
+}
+
+/* Keep the selector low-specificity so the Layout Density rules still win. */
+.chatify-sidebar-settings .chatify-settings-row {
+  padding-top: calc(0.75rem * var(--chatify-settings-menu-boost));
+  padding-bottom: calc(0.75rem * var(--chatify-settings-menu-boost));
+}
+
+#chatify-app .chatify-sidebar-settings .chatify-settings-row > span:first-child {
+  gap: calc(0.625rem * var(--chatify-settings-menu-boost));
+  font-size: calc(var(--chatify-text-sm, 0.875rem) * var(--chatify-settings-menu-boost));
+}
+
+#chatify-app .chatify-sidebar-settings .chatify-settings-row > span:first-child > svg {
+  width: calc(1rem * var(--chatify-settings-menu-boost));
+  height: calc(1rem * var(--chatify-settings-menu-boost));
+}
+
+#chatify-app .chatify-sidebar-settings .chatify-settings-row > span:last-child > span:first-child {
+  font-size: calc(var(--chatify-text-xs, 0.75rem) * var(--chatify-settings-menu-boost));
+}
+
+#chatify-app .chatify-sidebar-settings .chatify-settings-row > span:last-child > svg {
+  width: calc(1rem * var(--chatify-settings-menu-boost));
+  height: calc(1rem * var(--chatify-settings-menu-boost));
+}
+
+/* Danger rows (e.g. Log Out) keep their destructive red tint on label + icon. */
+.chatify-settings-row.chatify-settings-row-danger {
+  color: #fb7185;
+}
+
+.chatify-settings-row.chatify-settings-row-danger:hover:not(:disabled) {
+  color: #fda4af;
 }
 
 .chatify-sidebar-settings .chatify-settings-input,
@@ -1662,6 +2391,41 @@ body.chatify-dark {
 .chatify-modal-leave-to .chatify-modal-panel {
   transform: scale(0.95);
   opacity: 0;
+}
+
+/*
+ * Contact-info card sizing.
+ *
+ * One rule for every device: the card always keeps the native 450:880
+ * (1:1.9556) shape of the profile-effect artwork and fills 92% of the viewport
+ * height, capped at 880px, while never exceeding 94% of the viewport width.
+ * The old viewport-height `scale` media queries (0.86 / 0.80 / 0.72) made the
+ * same card render at a different size on phones and desktops; this replaces
+ * them with a single shared rule.
+ */
+.chatify-contact-info-panel {
+  --chatify-contact-info-height: min(880px, 92dvh, 183.82vw);
+  height: var(--chatify-contact-info-height);
+  width: calc(var(--chatify-contact-info-height) * 0.511364);
+  max-width: none;
+  max-height: none;
+}
+
+/*
+ * Action-button labels (Message / Favorite / Block).
+ *
+ * The card scales with the viewport, so a fixed 18px label reads smaller on a
+ * desktop card than on a phone card. Deriving the size from the card height
+ * keeps the exact same label-to-card proportion the mobile layout shows:
+ * 18px at a 717px-tall phone card, ~22px on the 874px desktop card.
+ */
+.chatify-contact-info-action-label {
+  font-size: 18px;
+  font-size: clamp(14px, calc(var(--chatify-contact-info-height, 880px) * 0.02506), 24px);
+  line-height: 1.25;
+  font-weight: 700;
+  position: relative;
+  z-index: 2;
 }
 
 .chatify-slide-left-enter-active,
@@ -1734,18 +2498,147 @@ body.chatify-dark {
 
 .chatify-thread-panel .chatify-message-row {
   width: fit-content;
-  max-width: 80%;
+  max-width: 85%;
 }
 
 @media (min-width: 768px) {
   .chatify-thread-panel .chatify-message-row {
-    max-width: 40%;
+    max-width: min(78%, 680px);
   }
+}
+
+/*
+ * The bubble must not re-cap its own width with a percentage: the row above is
+ * already capped, and a second `max-width: 78%` resolves against the row, so the
+ * bubble ends up at 78% of 78% while the row stays full width. That leftover space
+ * sat on the outgoing side only, because the bubble is laid out from the row's
+ * inline start — which is exactly what made outgoing bubbles look pulled inward
+ * on desktop. Let the row be the single source of truth, and push any residual
+ * space to the outer edge.
+ */
+.chatify-thread-panel .chatify-message-row .chatify-message-bubble {
+  max-width: 100%;
+}
+
+.chatify-thread-panel .chatify-message-row {
+  justify-content: flex-start;
 }
 
 .chatify-thread-panel .chatify-message-row-outgoing {
   margin-inline-start: auto;
   margin-inline-end: 0;
+  justify-content: flex-end;
+}
+
+/* ─── Bubble row geometry & gestures ────────────────────────────────
+   The row is the positioning context for the actions trigger and the swipe hint.
+   `pan-y` lets the scroll container keep vertical scrolling while horizontal
+   drags are ours to interpret as swipe-to-reply. */
+
+.chatify-message-row {
+  position: relative;
+  touch-action: pan-y;
+}
+
+/* The three-dot trigger used to be an in-flow flex child. Because it is 28px wide
+   plus a 4px gap, it pushed every outgoing bubble 32px away from the panel's right
+   edge while incoming bubbles stayed flush left — which read as rows "leaning"
+   on desktop. Mobile was unaffected only because the trigger is hidden there.
+   Taking it out of flow makes both edges flush, so the column is symmetric. */
+
+.chatify-message-actions-anchor {
+  position: absolute;
+  top: 50%;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.chatify-message-actions-anchor > * {
+  pointer-events: auto;
+}
+
+/* Incoming: trigger floats in the empty space to the right of the bubble.
+   Outgoing: it floats to the left. Neither side reserves layout width. */
+.chatify-message-actions-anchor-other {
+  inset-inline-start: calc(100% + 0.25rem);
+}
+
+.chatify-message-actions-anchor-own {
+  inset-inline-end: calc(100% + 0.25rem);
+}
+
+/* Long-press feedback: the bubble dips slightly and gets a soft halo, then
+   springs back once the menu is open. Pure transform/box-shadow so it never
+   reflows the list. */
+.chatify-message-holding .chatify-message-bubble {
+  transform: scale(0.965);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--chatify-color-chatify-primary) 45%, transparent);
+  transition: transform 120ms ease-out, box-shadow 120ms ease-out;
+}
+
+.chatify-message-holding .chatify-message-bubble::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: color-mix(in srgb, var(--chatify-color-chatify-primary) 8%, transparent);
+  pointer-events: none;
+}
+
+/* Swipe-to-reply hint: sits in the gap the bubble vacates. */
+.chatify-bubble-swipe-hint {
+  position: absolute;
+  top: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 1.75rem;
+  width: 1.75rem;
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--chatify-color-chatify-primary) 18%, transparent);
+  color: var(--chatify-color-chatify-primary);
+  transform: translateY(-50%);
+  animation: chatify-swipe-hint-in 140ms ease-out;
+  pointer-events: none;
+}
+
+.chatify-bubble-swipe-hint-other {
+  left: 0.25rem;
+}
+
+.chatify-bubble-swipe-hint-own {
+  right: 0.25rem;
+  scale: -1 1;
+}
+
+@keyframes chatify-swipe-hint-in {
+  from {
+    opacity: 0;
+    scale: 0.7;
+  }
+
+  to {
+    opacity: 1;
+    scale: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chatify-message-bubble,
+  .chatify-message-holding .chatify-message-bubble {
+    transition: none;
+  }
+
+  .chatify-message-holding .chatify-message-bubble {
+    transform: none;
+  }
+
+  .chatify-bubble-swipe-hint {
+    animation: none;
+  }
 }
 
 #chatify-app[dir='rtl'] .chatify-modal-nav-chevron {
@@ -1755,9 +2648,9 @@ body.chatify-dark {
 .chatify-toast-host {
   position: fixed;
   left: 50%;
-  z-index: 100;
+  z-index: 9999;
   display: flex;
-  width: min(92vw, 22rem);
+  width: min(92vw, 24rem);
   flex-direction: column;
   gap: 0.5rem;
   transform: translateX(-50%);
@@ -1825,6 +2718,9 @@ body.chatify-dark {
   overflow: hidden;
   border-radius: 1.15rem;
   box-shadow: 0 1px 2px rgb(0 0 0 / 10%);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
 }
 
 .chatify-message-bubble-out {
@@ -1845,6 +2741,22 @@ body.chatify-dark {
 
 .chatify-message-meta {
   color: var(--chatify-color-chatify-muted);
+}
+
+.chatify-message-meta-inline {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.25rem;
+  margin-top: 0.125rem;
+  font-size: 0.65rem;
+  line-height: 1;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.chatify-message-meta-standalone {
+  user-select: none;
 }
 
 .chatify-message-bubble-out .chatify-message-meta {
@@ -2463,4 +3375,176 @@ body.chatify-dark {
 
 .chatify-voice-wave-bar-played {
   background: var(--chatify-color-chatify-primary);
+}
+
+/* ====================================================================
+ * V3RCHAT Progressive Web App (PWA) Mobile-First & Responsive System
+ * ==================================================================== */
+
+/* Safe Area Insets & Root Geometry */
+:root {
+  --app-safe-top: env(safe-area-inset-top, 0px);
+  --app-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --app-safe-left: env(safe-area-inset-left, 0px);
+  --app-safe-right: env(safe-area-inset-right, 0px);
+  --app-viewport-height: 100vh;
+  --app-keyboard-height: 0px;
+}
+
+@supports (height: 100dvh) {
+  :root {
+    --app-viewport-height: 100dvh;
+  }
+}
+
+/* Prevent unwanted horizontal viewport overflow */
+html, body, #chatify-app {
+  width: 100%;
+  max-width: 100%;
+  height: 100%;
+  height: var(--app-viewport-height);
+  overflow: hidden;
+  touch-action: manipulation;
+  -webkit-overflow-scrolling: touch;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Code Blocks & Preformatted Text Scrolling */
+.chatify-message-body pre {
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 0.55rem 0.75rem;
+  margin: 0.4rem 0;
+  border-radius: 0.625rem;
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: #e4e4e7;
+  scrollbar-width: thin;
+}
+
+.chatify-message-body pre::-webkit-scrollbar {
+  height: 4px;
+}
+.chatify-message-body pre::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 2px;
+}
+
+.chatify-message-body code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 0.85em;
+  padding: 0.125rem 0.3rem;
+  border-radius: 0.25rem;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.chatify-message-body pre code {
+  padding: 0;
+  background: transparent;
+  white-space: pre;
+  word-break: normal;
+}
+
+/* Responsive Message Bubbles across SE, Plus, Pro Max, Fold, Tablet, Ultrawide */
+.chatify-message-bubble {
+  max-width: min(86vw, 600px);
+  word-break: break-word;
+}
+
+@media (min-width: 768px) {
+  .chatify-message-bubble {
+    max-width: min(78%, 680px);
+  }
+}
+
+@media (min-width: 1440px) {
+  .chatify-message-bubble {
+    max-width: min(72%, 760px);
+  }
+}
+
+/* Small screen optimization (iPhone SE / <= 375px) */
+@media (max-width: 380px) {
+  .chatify-message-bubble {
+    max-width: 88vw;
+  }
+  .chatify-composer-floating-pill {
+    padding-inline: 0.4rem;
+    gap: 0.25rem;
+  }
+}
+
+/* Prevent iOS Safari Auto-Zoom on Form Focus */
+@media (max-width: 768px) {
+  .chatify-composer-input,
+  input[type="text"],
+  input[type="password"],
+  input[type="email"],
+  input[type="search"],
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* Mobile Navigation Drawer Animations & Backdrop */
+.chatify-drawer-backdrop {
+  -webkit-backdrop-filter: blur(8px) saturate(1.8);
+  backdrop-filter: blur(8px) saturate(1.8);
+}
+
+.chatify-drawer-backdrop-enter-active,
+.chatify-drawer-backdrop-leave-active {
+  transition: opacity 250ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.chatify-drawer-backdrop-enter-from,
+.chatify-drawer-backdrop-leave-to {
+  opacity: 0;
+}
+
+.chatify-drawer-slide-enter-active,
+.chatify-drawer-slide-leave-active {
+  transition: transform 300ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.chatify-drawer-slide-enter-from,
+.chatify-drawer-slide-leave-to {
+  transform: translateX(-100%);
+}
+[dir="rtl"] .chatify-drawer-slide-enter-from,
+[dir="rtl"] .chatify-drawer-slide-leave-to {
+  transform: translateX(100%);
+}
+
+/* Smooth Touch Scrolling with Pull-to-refresh prevention & Slim Scrollbar */
+.chatify-message-list-scroll {
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
+
+.chatify-message-list-scroll::-webkit-scrollbar {
+  width: 5px;
+}
+
+.chatify-message-list-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.chatify-message-list-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 9999px;
+}
+
+/* Accessibility: Respect Reduced Motion Preferences */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

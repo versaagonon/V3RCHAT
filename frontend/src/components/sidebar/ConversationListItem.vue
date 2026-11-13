@@ -7,7 +7,9 @@ import { displayUserAvatar, displayUserName, HIDDEN_USER_NAME } from '../../util
 import { useContactsStore } from '../../stores/contacts'
 import { usePresenceStore } from '../../stores/presence'
 import { useConfigStore } from '../../stores/config'
+import { useDraftsStore } from '../../stores/drafts'
 import { useChatifyI18n } from '../../composables/useChatifyI18n'
+import UserNameplate from '../ui/UserNameplate.vue'
 
 const props = defineProps<{
   conversation: ChatifyConversation
@@ -28,6 +30,17 @@ const { messagingBlockedUserIds } = storeToRefs(contactsStore)
 const { t } = useChatifyI18n()
 
 const isSaved = computed(() => isSavedConversation(props.conversation))
+
+/*
+ * Draft label. Reads straight from the drafts store so the list re-renders the
+ * moment the composer text changes, without the two components talking to each
+ * other. Falls back to the last message when there is no draft.
+ */
+const draftsStore = useDraftsStore()
+const draftPreview = computed(() => {
+  if (!draftsStore.has(props.conversation.id)) return ''
+  return draftsStore.preview(props.conversation.id, 60)
+})
 
 const otherUserId = computed(() => props.conversation.relationships.other_user?.id ?? null)
 
@@ -85,6 +98,17 @@ const avatarBorderUrl = computed(() => {
   return otherUser.attributes.avatar_border?.image_url ?? null
 })
 
+const nameplate = computed(() => {
+  if (isSaved.value) return null
+  if (props.conversation.attributes.conversation_type === 'group') return null
+  const otherUser = props.conversation.relationships.other_user
+  if (!otherUser) return null
+  if (contactsStore.isMessagingBlocked(otherUser.id) && !contactsStore.isBlockedByMe(otherUser.id)) {
+    return null
+  }
+  return otherUser.attributes.nameplate ?? null
+})
+
 const showPresenceDot = computed(() =>
   !isSaved.value
   && otherUserId.value !== null
@@ -102,11 +126,20 @@ const showBlockedIcon = computed(() =>
 <template>
   <button
     type="button"
-    class="chatify-list-item chatify:flex chatify:w-full chatify:items-center chatify:gap-3 chatify:px-4 chatify:py-3 chatify:text-start"
+    class="chatify-list-item chatify:relative chatify:flex chatify:items-center chatify:gap-3 chatify:overflow-hidden chatify:px-4 chatify:py-2 chatify:text-start"
     :class="{ 'chatify-list-item-active': active }"
     @click="$emit('select')"
   >
-    <div class="chatify:relative chatify:h-12 chatify:w-12 chatify:shrink-0">
+    <!-- Nameplate as the row background: never shifts or replaces the name -->
+    <UserNameplate
+      v-if="nameplate"
+      :nameplate="nameplate"
+      :name="displayName"
+      mode="fill"
+      fit="cover"
+    />
+
+    <div class="chatify:relative chatify:z-10 chatify:h-12 chatify:w-12 chatify:shrink-0">
       <img
         v-if="avatarUrl"
         :src="avatarUrl"
@@ -132,17 +165,17 @@ const showBlockedIcon = computed(() =>
         v-if="avatarBorderUrl"
         :src="avatarBorderUrl"
         alt=""
-        class="chatify:pointer-events-none chatify:absolute chatify:inset-[-18%] chatify:h-[136%] chatify:w-[136%] chatify:max-w-none chatify:object-contain chatify:z-10"
+        class="chatify-avatar-border chatify:pointer-events-none chatify:absolute chatify:inset-[-10%] chatify:h-[120%] chatify:w-[120%] chatify:max-w-none chatify:object-contain chatify:z-10"
         aria-hidden="true"
       />
       <span
         v-if="showPresenceDot"
-        class="chatify-presence-dot"
+        class="chatify-presence-dot chatify:z-20"
         :aria-label="$t('ui.sidebar.online')"
       />
     </div>
 
-    <div class="chatify:min-w-0 chatify:flex-1">
+    <div class="chatify:relative chatify:z-10 chatify:min-w-0 chatify:flex-1">
       <div class="chatify:flex chatify:items-center chatify:justify-between chatify:gap-2">
         <div class="chatify:flex chatify:min-w-0 chatify:items-center chatify:gap-1.5">
           <p class="chatify:truncate chatify:text-sm chatify:font-medium">
@@ -190,8 +223,13 @@ const showBlockedIcon = computed(() =>
         </div>
       </div>
       <div class="chatify:flex chatify:items-center chatify:justify-between chatify:gap-2">
-        <p class="chatify:truncate chatify:text-xs chatify:text-chatify-muted">
-          {{ truncate(conversation.relationships.last_message?.attributes.body ?? t('ui.sidebar.no_messages_yet')) }}
+        <p class="chatify:truncate chatify:text-xs" :class="draftPreview ? 'chatify:text-chatify-text' : 'chatify:text-chatify-muted'">
+          <template v-if="draftPreview">
+            <span class="chatify-draft-label">Draft:</span> {{ draftPreview }}
+          </template>
+          <template v-else>
+            {{ truncate(conversation.relationships.last_message?.attributes.body ?? t('ui.sidebar.no_messages_yet')) }}
+          </template>
         </p>
         <span
           v-if="conversation.attributes.unread_count > 0"

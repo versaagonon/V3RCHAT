@@ -25,7 +25,7 @@ describe('AuthPage', () => {
     expect(wrapper.find('#v3r-login-email').exists()).toBe(true)
     expect(wrapper.find('#v3r-login-password').exists()).toBe(true)
     expect(wrapper.find('#v3r-secret-code').exists()).toBe(false)
-    expect(wrapper.find('.liquid-glass-submit').text()).toContain('Sign In to V3RCHAT')
+    expect(wrapper.find('.liquid-glass-submit').text()).toContain('Sign in')
   })
 
   it('switches to register mode and executes multi-step secret code authorization flow', async () => {

@@ -20,10 +20,13 @@ class UserSetting extends ChatifyModel
         'user_id',
         'avatar',
         'active_border_id',
+        'active_nameplate_id',
+        'active_profile_effect_id',
         'dark_mode',
         'messenger_color',
         'theme_preferences',
         'chat_background',
+        'profile_banner',
         'active_status',
     ];
 
@@ -55,5 +58,15 @@ class UserSetting extends ChatifyModel
     public function activeBorder(): BelongsTo
     {
         return $this->belongsTo(AvatarBorder::class, 'active_border_id');
+    }
+
+    public function activeNameplate(): BelongsTo
+    {
+        return $this->belongsTo(Nameplate::class, 'active_nameplate_id');
+    }
+
+    public function activeProfileEffect(): BelongsTo
+    {
+        return $this->belongsTo(ProfileEffect::class, 'active_profile_effect_id');
     }
 }

@@ -7,6 +7,7 @@ import { useContactsStore } from '../../stores/contacts'
 import { useConversationsStore } from '../../stores/conversations'
 import { useUiStore } from '../../stores/ui'
 import BaseModal from './BaseModal.vue'
+import UserAvatar from '../ui/UserAvatar.vue'
 
 const uiStore = useUiStore()
 const contactsStore = useContactsStore()
@@ -83,10 +84,12 @@ async function startChat(userId: number | string) {
           :key="user.id"
           class="chatify:flex chatify:items-center chatify:gap-3 chatify:px-3 chatify:py-2 chatify:hover:bg-chatify-sidebar"
         >
-          <img
+          <UserAvatar
+            size="sm"
+            :user="user"
             :src="user.attributes.avatar"
+            :border-url="user.attributes.avatar_border?.image_url"
             :alt="user.attributes.name"
-            class="chatify:h-10 chatify:w-10 chatify:rounded-full chatify:object-cover"
           />
           <div class="chatify:min-w-0 chatify:flex-1">
             <p class="chatify:truncate chatify:text-sm chatify:font-medium">{{ user.attributes.name }}</p>

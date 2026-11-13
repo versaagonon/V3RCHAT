@@ -8,6 +8,7 @@ use Chatify\Services\LinkPreviewService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Validation\ValidationException;
 
 class LinkPreviewController extends Controller
@@ -20,48 +21,17 @@ class LinkPreviewController extends Controller
 
         $url = $validated['url'];
 
-        if (! $this->isAllowedUrl($url)) {
+        try {
+            $linkPreviewService->assertPublicUrl($url);
+        } catch (\Throwable $e) {
             throw ValidationException::withMessages([
                 'url' => [__('chatify::chatify.errors.only_http_https_urls')],
             ]);
         }
 
-        $preview = $linkPreviewService->fetch($url);
+        $cacheKey = 'chatify:link_preview:'.md5($url);
+        $preview = Cache::remember($cacheKey, 600, fn () => $linkPreviewService->fetch($url));
 
         return response()->json(['data' => $preview]);
-    }
-
-    private function isAllowedUrl(string $url): bool
-    {
-        $parts = parse_url($url);
-
-        if ($parts === false || ! isset($parts['scheme'], $parts['host'])) {
-            return false;
-        }
-
-        if (! in_array(strtolower($parts['scheme']), ['http', 'https'], true)) {
-            return false;
-        }
-
-        $host = strtolower($parts['host']);
-
-        if (in_array($host, ['localhost', '127.0.0.1', '::1'], true)) {
-            return false;
-        }
-
-        if (filter_var($host, FILTER_VALIDATE_IP) !== false) {
-            return ! $this->isPrivateIp($host);
-        }
-
-        return true;
-    }
-
-    private function isPrivateIp(string $ip): bool
-    {
-        return filter_var(
-            $ip,
-            FILTER_VALIDATE_IP,
-            FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE
-        ) === false;
     }
 }

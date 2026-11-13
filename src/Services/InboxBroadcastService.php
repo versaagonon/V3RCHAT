@@ -39,6 +39,25 @@ final class InboxBroadcastService
                 continue;
             }
 
+            // For empty direct conversations, never broadcast to the recipient
+            if ($lastMessage === null && $conversation->isDirect() && (int) $conversation->created_by !== $userId) {
+                continue;
+            }
+
+            // If this participant has a pending chat request for this direct conversation, do not broadcast to their inbox
+            if ($conversation->isDirect()) {
+                $hasPendingRequest = \Chatify\Models\ChatifyNotification::query()
+                    ->where('user_id', $userId)
+                    ->where('type', \Chatify\Models\ChatifyNotification::TYPE_REQUEST)
+                    ->where('status', \Chatify\Models\ChatifyNotification::STATUS_PENDING)
+                    ->whereJsonContains('data->conversation_id', $conversation->id)
+                    ->exists();
+
+                if ($hasPendingRequest) {
+                    continue;
+                }
+            }
+
             $unread = $this->messageService->unreadCount($conversation, $userId);
 
             ConversationInboxUpdated::dispatch(

@@ -63,7 +63,10 @@ class ConversationController extends Controller
 
         $conversation = $action->handle($request->user(), $recipient);
         $conversation->load(['participants.user', 'messages' => fn ($q) => $q->latest()->limit(1)]);
-        $inboxBroadcastService->broadcastForConversation($conversation);
+
+        if ($conversation->messages->isNotEmpty()) {
+            $inboxBroadcastService->broadcastForConversation($conversation);
+        }
 
         return (new ConversationResource($conversation))
             ->response()

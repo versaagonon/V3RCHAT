@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Chatify\Http\Controllers\Api;
 
+use Chatify\Events\NotificationReceived;
 use Chatify\Models\AvatarBorder;
+use Chatify\Models\ChatifyNotification;
 use Chatify\Models\UserSetting;
 use Chatify\Support\ChatifyModels;
 use Illuminate\Http\JsonResponse;
@@ -48,16 +50,23 @@ class AdminBorderController extends Controller
 
         $request->validate([
             'name' => ['required', 'string', 'max:50'],
-            'border' => ['required', 'file', 'max:5120'], // Max 5MB APNG/PNG
+            'border' => ['required', 'file', 'mimes:png,apng,webp,gif', 'max:5120'], // Max 5MB APNG/PNG/WebP/GIF
         ]);
 
         $name = trim((string) $request->input('name'));
         $file = $request->file('border');
 
+        $mime = $file->getMimeType();
+        $ext = match ($mime) {
+            'image/png', 'image/apng' => 'png',
+            'image/webp' => 'webp',
+            'image/gif' => 'gif',
+            default => abort(422, 'Unsupported image format. Allowed formats: PNG, APNG, WebP, GIF.'),
+        };
+
         $baseSlug = Str::slug($name);
         $slug = $baseSlug ?: 'border';
-        $uniqueSlug = $slug . '_' . time();
-        $ext = $file->getClientOriginalExtension() ?: 'png';
+        $uniqueSlug = $slug . '_' . time() . '_' . Str::random(6);
         $fileName = $uniqueSlug . '.' . $ext;
 
         $targetDir = public_path('vendor/chatify/borders');
@@ -132,20 +141,24 @@ class AdminBorderController extends Controller
         $validated = $request->validate([
             'border_id' => ['required', 'integer', 'exists:avatar_borders,id'],
             'user_query' => ['required', 'string'],
+            'gift_title' => ['nullable', 'string', 'max:255'],
+            'gift_description' => ['nullable', 'string'],
         ]);
 
         $border = AvatarBorder::findOrFail($validated['border_id']);
         $query = trim((string) $validated['user_query']);
 
         $userModel = ChatifyModels::userClass();
-        $targetUser = $userModel::where('username', $query)
-            ->orWhere('email', $query)
-            ->first();
+        $targetUser = $userModel::where(function ($q) use ($query) {
+            $q->where('username', $query)
+              ->orWhere('email', $query);
+        })->first();
 
         if (! $targetUser) {
+            $safeQuery = htmlspecialchars($query, ENT_QUOTES, 'UTF-8');
             return response()->json([
-                'message' => "No user found matching '{$query}'. Please check the username or email.",
-                'errors' => ['user_query' => ["No user found matching '{$query}'."]],
+                'message' => "No user found matching '{$safeQuery}'. Please check the username or identifier.",
+                'errors' => ['user_query' => ["No user found matching identifier."]],
             ], 422);
         }
 
@@ -162,6 +175,32 @@ class AdminBorderController extends Controller
             'created_at' => now(),
             'updated_at' => now(),
         ]);
+
+        $giftTitle = ! empty($validated['gift_title'])
+            ? trim($validated['gift_title'])
+            : "Special Gift: {$border->name} Border";
+
+        $giftDescription = ! empty($validated['gift_description'])
+            ? trim($validated['gift_description'])
+            : "Congratulations! An administrator has gifted you the animated \"{$border->name}\" avatar border. You can equip it now in your Profile settings.";
+
+        $notif = ChatifyNotification::create([
+            'id' => (string) Str::uuid(),
+            'user_id' => $targetUser->getKey(),
+            'type' => ChatifyNotification::TYPE_INFORMATION,
+            'title' => $giftTitle,
+            'body' => $giftDescription,
+            'image_url' => $border->image_url,
+            'data' => [
+                'border_id' => $border->id,
+                'border_name' => $border->name,
+                'gifted_by_id' => $request->user()->getKey(),
+                'gifted_by' => $request->user()->name,
+            ],
+            'status' => ChatifyNotification::STATUS_UNREAD,
+        ]);
+
+        NotificationReceived::dispatch($notif, (int) $targetUser->getKey());
 
         $displayName = $targetUser->username ? "@{$targetUser->username}" : $targetUser->email;
 

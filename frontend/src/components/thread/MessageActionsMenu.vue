@@ -9,8 +9,14 @@ import {
 
 const props = defineProps<{
   isOwn: boolean
+  isAdmin?: boolean
   hasCopyableText: boolean
   isSavedConversation?: boolean
+  /**
+   * Hide the three-dot trigger button. On mobile the menu is opened by holding the
+   * bubble instead, so the button is redundant chrome.
+   */
+  hideTrigger?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -32,6 +38,7 @@ const trigger = ref<HTMLButtonElement | null>(null)
 const items = computed(() =>
   buildMessageActionItems({
     isOwn: props.isOwn,
+    isAdmin: props.isAdmin,
     hasCopyableText: props.hasCopyableText,
     isSavedConversation: props.isSavedConversation,
   }),
@@ -100,8 +107,13 @@ defineExpose({ openAt, close })
 </script>
 
 <template>
-  <div ref="root" class="chatify:shrink-0">
+  <div
+    ref="root"
+    class="chatify-message-actions-anchor"
+    :class="isOwn ? 'chatify-message-actions-anchor-own' : 'chatify-message-actions-anchor-other'"
+  >
     <button
+      v-if="!hideTrigger"
       ref="trigger"
       type="button"
       class="chatify-message-actions-trigger chatify:flex chatify:h-7 chatify:w-7 chatify:items-center chatify:justify-center chatify:rounded-full chatify:text-chatify-muted chatify:opacity-0 chatify:transition chatify:group-hover:opacity-100"

@@ -4,11 +4,14 @@ import type {
   BootConfig,
   ChatifyConversation,
   ChatifyMessage,
+  ChatifyNotification,
   ChatifyParticipant,
   ChatifyUser,
   GroupPermissionKey,
   LinkPreview,
+  Nameplate,
   PaginatedResponse,
+  ProfileEffect,
   SharedAttachment,
   SingleResponse,
   UserSettings,
@@ -320,6 +323,97 @@ export function createChatifyApi(client: ApiClient) {
       return client.post<SingleResponse<ChatifyUser>>('/profile/border', { border_id: borderId })
     },
 
+    uploadProfileBanner(file: File, onProgress?: (pct: number) => void) {
+      const form = new FormData()
+      form.append('profile_banner', file)
+      return client.post<SingleResponse<ChatifyUser>>('/profile', form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        onUploadProgress: (e) => {
+          if (onProgress && e.total) {
+            onProgress(Math.round((e.loaded * 100) / e.total))
+          }
+        },
+      })
+    },
+
+    removeProfileBanner() {
+      return client.patch<SingleResponse<ChatifyUser>>('/profile', { reset_profile_banner: true })
+    },
+
+    // Nameplates (gift-only, mirrors the borders API shape)
+    getUserNameplates() {
+      return client.get<{
+        data: {
+          is_admin: boolean
+          active_nameplate_id: number | null
+          available_nameplates: Nameplate[]
+        }
+      }>('/nameplates')
+    },
+
+    equipNameplate(nameplateId: number | null) {
+      return client.post<SingleResponse<ChatifyUser>>('/profile/nameplate', { nameplate_id: nameplateId })
+    },
+
+    getAdminNameplates() {
+      return client.get<{ data: Nameplate[] }>('/admin/nameplates')
+    },
+
+    uploadAdminNameplate(formData: FormData) {
+      return client.post<{ message: string; data: Nameplate }>('/admin/nameplates', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+    },
+
+    deleteAdminNameplate(id: number) {
+      return client.delete<{ message: string }>(`/admin/nameplates/${id}`)
+    },
+
+    giftNameplate(payload: { nameplate_id: number; user_query: string; gift_title?: string; gift_description?: string }) {
+      return client.post<{ message: string; data: Record<string, unknown> }>('/admin/nameplates/gift', payload)
+    },
+
+    revokeNameplateGift(payload: { nameplate_id: number; user_id: number }) {
+      return client.delete<{ message: string }>('/admin/nameplates/gift', { data: payload })
+    },
+
+    // Profile effects (paired 450x880 APNG animations, gift-only like nameplates)
+    getUserProfileEffects() {
+      return client.get<{
+        data: {
+          is_admin: boolean
+          active_profile_effect_id: number | null
+          available_profile_effects: ProfileEffect[]
+        }
+      }>('/profile-effects')
+    },
+
+    equipProfileEffect(profileEffectId: number | null) {
+      return client.post<SingleResponse<ChatifyUser>>('/profile/profile-effect', { profile_effect_id: profileEffectId })
+    },
+
+    getAdminProfileEffects() {
+      return client.get<{ data: ProfileEffect[] }>('/admin/profile-effects')
+    },
+
+    uploadAdminProfileEffect(formData: FormData) {
+      return client.post<{ message: string; data: ProfileEffect }>('/admin/profile-effects', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+    },
+
+    deleteAdminProfileEffect(id: number) {
+      return client.delete<{ message: string }>(`/admin/profile-effects/${id}`)
+    },
+
+    giftProfileEffect(payload: { profile_effect_id: number; user_query: string; gift_title?: string; gift_description?: string }) {
+      return client.post<{ message: string; data: Record<string, unknown> }>('/admin/profile-effects/gift', payload)
+    },
+
+    revokeProfileEffectGift(payload: { profile_effect_id: number; user_id: number }) {
+      return client.delete<{ message: string }>('/admin/profile-effects/gift', { data: payload })
+    },
+
     getAdminBorders() {
       return client.get<{ data: AvatarBorder[] }>('/admin/borders')
     },
@@ -334,7 +428,7 @@ export function createChatifyApi(client: ApiClient) {
       return client.delete<{ message: string }>(`/admin/borders/${id}`)
     },
 
-    giftBorder(payload: { border_id: number; user_query: string }) {
+    giftBorder(payload: { border_id: number; user_query: string; gift_title?: string; gift_description?: string }) {
       return client.post<{ message: string; data: Record<string, unknown> }>('/admin/borders/gift', payload)
     },
 
@@ -353,6 +447,48 @@ export function createChatifyApi(client: ApiClient) {
           borders_count: number
         }>
       }>('/admin/users', { params: { q } })
+    },
+
+    getNotifications() {
+      return client.get<{
+        data: ChatifyNotification[]
+        meta: {
+          total_count: number
+          unread_info_count: number
+          pending_requests_count: number
+          total_badge_count: number
+        }
+      }>('/notifications')
+    },
+
+    markNotificationRead(id: string) {
+      return client.post<{ message: string; data: ChatifyNotification }>(`/notifications/${id}/read`)
+    },
+
+    markAllNotificationsRead() {
+      return client.post<{ message: string }>('/notifications/read-all')
+    },
+
+    confirmChatRequest(id: string) {
+      return client.post<{ message: string; conversation_id: string | null; data: ChatifyNotification }>(`/notifications/${id}/confirm`)
+    },
+
+    deleteChatRequest(id: string) {
+      return client.post<{ message: string }>(`/notifications/${id}/delete`)
+    },
+
+    deleteNotification(id: string) {
+      return client.delete<{ message: string }>(`/notifications/${id}`)
+    },
+
+    deleteAllNotifications() {
+      return client.delete<{ message: string }>('/notifications')
+    },
+
+    broadcastAnnouncement(formData: FormData) {
+      return client.post<{ message: string }>('/admin/announcements', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
     },
   }
 }

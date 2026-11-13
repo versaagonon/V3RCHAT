@@ -37,6 +37,7 @@ final class UserSettingsService
         array $attributes,
         ?UploadedFile $avatar = null,
         ?UploadedFile $chatBackground = null,
+        ?UploadedFile $profileBanner = null,
     ): UserSetting {
         $settings = $this->forUser($user);
 
@@ -54,6 +55,17 @@ final class UserSettingsService
             $this->deleteChatBackgroundIfCustom($settings->chat_background);
             $stored = $this->attachmentService->storeChatBackground($chatBackground);
             $settings->chat_background = $stored['stored_name'];
+        }
+
+        if ($profileBanner !== null) {
+            $this->deleteProfileBannerIfCustom($settings->profile_banner);
+            $stored = $this->attachmentService->storeAvatar($profileBanner); // reuse avatar storage logic, same disk
+            $settings->profile_banner = $stored['stored_name'];
+        }
+
+        if (! empty($attributes['reset_profile_banner'])) {
+            $this->deleteProfileBannerIfCustom($settings->profile_banner);
+            $settings->profile_banner = null;
         }
 
         if (array_key_exists('dark_mode', $attributes)) {
@@ -94,6 +106,19 @@ final class UserSettingsService
         $settings->save();
 
         return $settings->fresh();
+    }
+
+    private function deleteProfileBannerIfCustom(?string $filename): void
+    {
+        if ($filename === null || $filename === '') {
+            return;
+        }
+
+        $path = config('chatify.user_avatar.folder', 'users-avatar').'/'.$filename;
+
+        if ($this->attachmentService->storage()->exists($path)) {
+            $this->attachmentService->storage()->delete($path);
+        }
     }
 
     private function deleteAvatarIfCustom(?string $filename): void

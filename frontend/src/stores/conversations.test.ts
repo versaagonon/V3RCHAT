@@ -77,6 +77,27 @@ describe('useConversationsStore inbox updates', () => {
     Object.defineProperty(window, 'innerWidth', { writable: true, configurable: true, value: originalWidth })
   })
 
+  it('ignores brand new empty direct conversation updates for recipient before any message is sent', () => {
+    const store = useConversationsStore()
+    store.items = []
+
+    // User 2 started a direct chat with User 1 (current user), but has not sent any message
+    store.handleInboxUpdate(
+      {
+        ...makeConversation('c-empty', '2026-01-03T10:00:00Z', 0),
+        relationships: {
+          participants: [],
+          last_message: null,
+          other_user: null,
+          creator: { data: { type: 'user', id: '2' } },
+        },
+      },
+      '1', // current user is recipient '1'
+    )
+
+    expect(store.items).toEqual([])
+  })
+
   it('keeps newer local inbox state when fetchAll returns stale data', async () => {
     const store = useConversationsStore()
     const configStore = useConfigStore()
@@ -168,5 +189,43 @@ describe('useConversationsStore inbox updates', () => {
 
     expect(store.loadFailed).toBe(true)
     expect(store.items).toEqual([])
+  })
+
+  it('removes local conversations that are no longer returned by server on fetchAll', async () => {
+    const store = useConversationsStore()
+    const configStore = useConfigStore()
+
+    store.items = [
+      makeConversation('c-active', '2026-01-01T10:00:00Z'),
+      makeConversation('c-deleted', '2026-01-02T10:00:00Z'),
+    ]
+
+    configStore.api = {
+      getConversations: async () => ({
+        data: {
+          data: [
+            makeConversation('c-active', '2026-01-01T10:00:00Z'),
+          ],
+        },
+      }),
+    } as never
+
+    await store.fetchAll()
+
+    expect(store.items.map((i) => i.id)).toEqual(['c-active'])
+  })
+
+  it('removes conversation cleanly with removeConversation using string ID matching', () => {
+    const store = useConversationsStore()
+    store.items = [
+      makeConversation('123', '2026-01-01T10:00:00Z'),
+      makeConversation('456', '2026-01-02T10:00:00Z'),
+    ]
+    store.activeId = '123'
+
+    store.removeConversation('123')
+
+    expect(store.items.map((i) => i.id)).toEqual(['456'])
+    expect(store.activeId).toBeNull()
   })
 })

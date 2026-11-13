@@ -28,7 +28,10 @@ final class DeleteMessage
             return;
         }
 
-        if ((int) $message->user_id !== (int) $user->getKey()) {
+        $isAdmin = ($user->role ?? 'node') === 'admin'
+            || (method_exists($user, 'isAdmin') && $user->isAdmin());
+
+        if ((int) $message->user_id !== (int) $user->getKey() && ! $isAdmin) {
             abort(403);
         }
 

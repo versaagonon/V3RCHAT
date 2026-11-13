@@ -76,7 +76,24 @@ export const useSettingsStore = defineStore('settings', () => {
       // In case session expired or network error, proceed to redirect
     } finally {
       if (typeof window !== 'undefined') {
-        window.location.href = '/'
+        const isStandalone =
+          (typeof window.matchMedia === 'function' ? window.matchMedia('(display-mode: standalone)').matches : false) ||
+          (window.navigator as unknown as { standalone?: boolean })?.standalone === true ||
+          (typeof document !== 'undefined' && Boolean(document.referrer?.includes('android-app://'))) ||
+          Boolean(window.location?.search && new URLSearchParams(window.location.search).get('pwa') === '1')
+
+        // Purge runtime caches & storage on logout
+        if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+          navigator.serviceWorker.controller.postMessage({ type: 'CLEAR_DATA' })
+        }
+        try {
+          sessionStorage.clear()
+        } catch {
+          // ignore
+        }
+
+        // PWA navigation restriction: inside PWA, unauthenticated users must land on /login
+        window.location.href = isStandalone ? (configStore.boot?.loginUrl ?? '/login?pwa=1') : '/'
       }
     }
   }

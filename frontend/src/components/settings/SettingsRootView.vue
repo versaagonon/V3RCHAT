@@ -11,6 +11,8 @@ import { useConfigStore } from '../../stores/config'
 import { useContactsStore } from '../../stores/contacts'
 import { useSettingsStore } from '../../stores/settings'
 import { useConfirmStore } from '../../stores/confirm'
+import { useUiStore } from '../../stores/ui'
+import { usePwa } from '../../composables/usePwa'
 import { useChatifyI18n } from '../../composables/useChatifyI18n'
 
 defineEmits<{
@@ -21,6 +23,8 @@ const configStore = useConfigStore()
 const contactsStore = useContactsStore()
 const settingsStore = useSettingsStore()
 const confirmStore = useConfirmStore()
+const uiStore = useUiStore()
+const { isStandalone, canInstall, isIos } = usePwa()
 const { t } = useChatifyI18n()
 const { user, preferences, themesEnabled, fontsEnabled, wallpaperEnabled, showOnlineStatus } = storeToRefs(configStore)
 const { blockedUsers } = storeToRefs(contactsStore)
@@ -88,7 +92,7 @@ async function handleLogout() {
 
 <template>
   <div>
-    <SettingsProfileHeader @navigate="$emit('navigate', 'profile')" />
+    <SettingsProfileHeader @open="uiStore.openModal('profileInfo')" />
 
     <SettingsGroup>
       <SettingsRow
@@ -124,7 +128,7 @@ async function handleLogout() {
       >
         <template #icon>
           <svg
-            class="chatify:h-4 chatify:w-4 chatify:shrink-0 chatify:text-amber-400"
+            class="chatify:h-4 chatify:w-4 chatify:shrink-0 chatify:text-chatify-primary"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -145,34 +149,118 @@ async function handleLogout() {
         toggle
         :toggle-on="showOnlineStatus"
         @toggle="toggleOnlineStatus"
-      />
+      >
+        <template #icon>
+          <svg
+            class="chatify:h-4 chatify:w-4 chatify:shrink-0 chatify:text-chatify-primary"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
+            <circle cx="12" cy="12" r="3" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" />
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.6 5.6a9 9 0 000 12.8m12.8 0a9 9 0 000-12.8" />
+          </svg>
+        </template>
+      </SettingsRow>
       <SettingsRow
         v-if="themesEnabled"
         :label="t('ui.settings.themes')"
         :value="themeLabel"
         chevron
         @click="$emit('navigate', 'themes')"
-      />
+      >
+        <template #icon>
+          <svg
+            class="chatify:h-4 chatify:w-4 chatify:shrink-0 chatify:text-chatify-primary"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"
+            />
+          </svg>
+        </template>
+      </SettingsRow>
       <SettingsRow
         v-if="fontsEnabled"
         :label="t('ui.settings.layout_and_fonts', 'Layout & Fonts')"
         :value="layoutFontsLabel"
         chevron
         @click="$emit('navigate', 'font')"
-      />
+      >
+        <template #icon>
+          <svg
+            class="chatify:h-4 chatify:w-4 chatify:shrink-0 chatify:text-chatify-primary"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7V5h16v2M12 5v14M8.5 19h7" />
+          </svg>
+        </template>
+      </SettingsRow>
       <SettingsRow
         v-if="wallpaperEnabled"
         :label="t('ui.settings.wallpaper')"
         :value="wallpaperLabel"
         chevron
         @click="$emit('navigate', 'wallpaper')"
-      />
+      >
+        <template #icon>
+          <svg
+            class="chatify:h-4 chatify:w-4 chatify:shrink-0 chatify:text-chatify-primary"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+            />
+          </svg>
+        </template>
+      </SettingsRow>
       <SettingsRow
         :label="t('ui.settings.blocked_contacts')"
         :value="blockedContactsLabel"
         chevron
         @click="$emit('navigate', 'blocked')"
-      />
+      >
+        <template #icon>
+          <svg
+            class="chatify:h-4 chatify:w-4 chatify:shrink-0 chatify:text-chatify-primary"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
+            <circle cx="12" cy="12" r="9" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" />
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.6 5.6l12.8 12.8" />
+          </svg>
+        </template>
+      </SettingsRow>
+      <SettingsRow
+        label="Install Application"
+        :value="isStandalone ? 'Installed (PWA)' : (canInstall || isIos ? 'Install PWA' : 'Available')"
+        chevron
+        @click="uiStore.openModal('pwaInstall')"
+      >
+        <template #icon>
+          <svg class="chatify:h-4 chatify:w-4 chatify:shrink-0 chatify:text-chatify-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+          </svg>
+        </template>
+      </SettingsRow>
     </SettingsGroup>
 
     <SettingsGroup class="chatify:mt-3">

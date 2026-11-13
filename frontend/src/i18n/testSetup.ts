@@ -17,4 +17,9 @@ config.global.plugins = [i18n]
 beforeEach(() => {
   setBootLocale('en')
   setChatifyTranslator((key, params) => i18n.global.t(key, params ?? {}))
+  if (!document.getElementById('chatify-app')) {
+    const appEl = document.createElement('div')
+    appEl.id = 'chatify-app'
+    document.body.appendChild(appEl)
+  }
 })

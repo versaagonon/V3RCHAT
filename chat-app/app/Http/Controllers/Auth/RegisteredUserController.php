@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
@@ -113,9 +114,17 @@ class RegisteredUserController extends Controller
         $request->validate([
             'secret_code' => ['required', 'string', 'max:100'],
             'name' => ['required', 'string', 'max:255'],
-            'username' => ['nullable', 'string', 'min:3', 'max:50', 'alpha_dash', 'unique:'.User::class.',username'],
+            'username' => [
+                'nullable',
+                'string',
+                'min:3',
+                'max:50',
+                'alpha_dash',
+                Rule::notIn(['admin', 'root', 'system', 'v3rchat', 'moderator', 'support', 'owner']),
+                'unique:'.User::class.',username',
+            ],
             'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
-            'password' => ['required', 'confirmed', Rules\Password::defaults()],
+            'password' => ['required', 'confirmed', Rules\Password::min(8)->uncompromised()],
         ]);
 
         $code = trim((string) $request->input('secret_code'));
@@ -129,9 +138,14 @@ class RegisteredUserController extends Controller
             ])->status(422);
         }
 
+        $normalizedName = class_exists(\Normalizer::class)
+            ? (\Normalizer::normalize(trim((string) $request->name), \Normalizer::FORM_KC) ?: trim((string) $request->name))
+            : trim((string) $request->name);
+        $normalizedUsername = $request->username ? strtolower(trim((string) $request->username)) : null;
+
         $user = User::create([
-            'name' => $request->name,
-            'username' => $request->username ?: null,
+            'name' => $normalizedName,
+            'username' => $normalizedUsername,
             'email' => $request->email,
             'password' => Hash::make($request->password),
         ]);
@@ -166,29 +180,24 @@ class RegisteredUserController extends Controller
      */
     protected function validateSecretCode(string $code, bool $returnRecord = false): mixed
     {
-        if ($code === '') {
+        $code = trim($code);
+        if ($code === '' || ! Schema::hasTable('registration_codes')) {
             return false;
         }
 
-        $record = null;
-
-        if (Schema::hasTable('registration_codes')) {
-            $record = DB::table('registration_codes')
-                ->where('code', $code)
-                ->where('is_active', true)
-                ->where(function ($q) {
-                    $q->whereNull('expires_at')->orWhere('expires_at', '>', now());
-                })
-                ->where(function ($q) {
-                    $q->whereNull('max_uses')->orWhereColumn('times_used', '<', 'max_uses');
-                })
-                ->first();
-        }
-
-        // Hardcoded syndicate fallback key if DB table isn't present
-        if (! $record && $code === 'V3ROURPARTNERSINCE2020') {
-            return $returnRecord ? (object)['id' => null, 'code' => 'V3ROURPARTNERSINCE2020'] : true;
-        }
+        $record = DB::table('registration_codes')
+            ->where(function ($q) use ($code) {
+                $q->where('code', $code)
+                    ->orWhere('code', hash('sha256', $code));
+            })
+            ->where('is_active', true)
+            ->where(function ($q) {
+                $q->whereNull('expires_at')->orWhere('expires_at', '>', now());
+            })
+            ->where(function ($q) {
+                $q->whereNull('max_uses')->orWhereColumn('times_used', '<', 'max_uses');
+            })
+            ->first();
 
         if (! $record) {
             return false;

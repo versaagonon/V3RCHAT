@@ -30,6 +30,7 @@ function actionLabel(id: MessageActionId): string {
 
 export function buildMessageActionItems(options: {
   isOwn: boolean
+  isAdmin?: boolean
   hasCopyableText: boolean
   isSavedConversation?: boolean
 }): MessageActionItem[] {
@@ -54,7 +55,9 @@ export function buildMessageActionItems(options: {
     separatorBefore: true,
   })
 
-  if (options.isOwn && !options.isSavedConversation) {
+  const canRemoveForAll = (options.isOwn || Boolean(options.isAdmin)) && !options.isSavedConversation
+
+  if (canRemoveForAll) {
     items.push({
       id: 'removeForAll',
       label: actionLabel('removeForAll'),

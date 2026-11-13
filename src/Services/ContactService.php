@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Chatify\Services;
 
+use Chatify\Models\ChatifyNotification;
 use Chatify\Models\Conversation;
 use Chatify\Support\ChatifyModels;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -35,6 +36,16 @@ final class ContactService
             ->whereNull('deleted_at')
             ->groupBy('conversation_id');
 
+        $pendingConversationIds = ChatifyNotification::query()
+            ->where('user_id', $userId)
+            ->where('type', ChatifyNotification::TYPE_REQUEST)
+            ->where('status', ChatifyNotification::STATUS_PENDING)
+            ->get()
+            ->pluck('data.conversation_id')
+            ->filter()
+            ->values()
+            ->all();
+
         return ChatifyModels::conversationClass()::query()
             ->select(
                 "{$conversationTable}.*",
@@ -50,6 +61,14 @@ final class ContactService
             ->leftJoinSub($latestMessages, 'latest', function ($join) use ($conversationTable) {
                 $join->on("{$conversationTable}.id", '=', 'latest.conversation_id');
             })
+            ->where(function (Builder $query) use ($conversationTable, $userId) {
+                $query->where("{$conversationTable}.type", '!=', Conversation::TYPE_DIRECT)
+                    ->orWhereNotNull('latest.last_message_at')
+                    ->orWhere("{$conversationTable}.created_by", '=', $userId);
+            })
+            ->when($pendingConversationIds !== [], function (Builder $query) use ($conversationTable, $pendingConversationIds) {
+                $query->whereNotIn("{$conversationTable}.id", $pendingConversationIds);
+            })
             ->with(['participants.user', 'messages' => fn ($q) => $q->latest()->limit(1)])
             ->orderByRaw("CASE WHEN {$conversationTable}.type = ? THEN 0 ELSE 1 END", [Conversation::TYPE_SAVED])
             ->orderByDesc("{$participantTable}.is_pinned")
@@ -61,7 +80,13 @@ final class ContactService
     public function search(Model $authUser, string $query, int $perPage = 30): LengthAwarePaginator
     {
         $userClass = ChatifyModels::userClass();
-        $term = addcslashes(trim($query), '%_\\');
+        $trimmed = trim($query);
+
+        if (mb_strlen($trimmed) < 2) {
+            return $userClass::query()->whereRaw('1 = 0')->paginate($perPage);
+        }
+
+        $term = addcslashes($trimmed, '%_\\');
         $blockedIds = $this->blockService->blockedUserIdsFor($authUser);
 
         return $userClass::query()
@@ -69,7 +94,7 @@ final class ContactService
             ->when($blockedIds !== [], fn (Builder $query) => $query->whereNotIn('id', $blockedIds))
             ->where(function (Builder $query) use ($term): void {
                 $query->where('name', 'LIKE', '%'.$term.'%')
-                    ->orWhere('email', 'LIKE', '%'.$term.'%');
+                    ->orWhere('username', 'LIKE', '%'.$term.'%');
             })
             ->orderBy('name')
             ->paginate($perPage);

@@ -18,11 +18,15 @@ export function createEcho(config: BootConfig): Echo<'pusher'> | null {
 
   window.Pusher = Pusher
 
+  const resolvedWsHost = (broadcast.wsHost === '127.0.0.1' || broadcast.wsHost === 'localhost') && typeof window !== 'undefined' && window.location.hostname
+    ? window.location.hostname
+    : (broadcast.wsHost ?? (typeof window !== 'undefined' ? window.location.hostname : undefined))
+
   return new Echo({
     broadcaster: 'pusher',
     key: broadcast.key,
     cluster: broadcast.cluster ?? 'mt1',
-    wsHost: broadcast.wsHost ?? undefined,
+    wsHost: resolvedWsHost,
     wsPort: broadcast.wsPort,
     wssPort: broadcast.wsPort,
     forceTLS: broadcast.forceTLS,
@@ -75,6 +79,7 @@ export function subscribeToUserInbox(
     onGroupMembershipRevoked?: (payload: unknown) => void
     onUserPresenceChanged?: (payload: unknown) => void
     onUserBlockChanged?: (payload: unknown) => void
+    onNotificationReceived?: (payload: unknown) => void
   },
 ) {
   if (!echo) {
@@ -94,6 +99,9 @@ export function subscribeToUserInbox(
   }
   if (handlers.onUserBlockChanged) {
     channel.listen('.UserBlockChanged', handlers.onUserBlockChanged)
+  }
+  if (handlers.onNotificationReceived) {
+    channel.listen('.NotificationReceived', handlers.onNotificationReceived)
   }
 
   return () => {

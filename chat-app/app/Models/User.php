@@ -11,7 +11,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Chatify\Traits\InteractsWithChatify;
 
-#[Fillable(['name', 'username', 'email', 'password', 'role'])]
+#[Fillable(['name', 'username', 'email', 'password'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -25,6 +25,26 @@ class User extends Authenticatable
             'user_avatar_borders',
             'user_id',
             'border_id'
+        )->withTimestamps();
+    }
+
+    public function nameplates(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(
+            \Chatify\Models\Nameplate::class,
+            'user_nameplates',
+            'user_id',
+            'nameplate_id'
+        )->withTimestamps();
+    }
+
+    public function profileEffects(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(
+            \Chatify\Models\ProfileEffect::class,
+            'user_profile_effects',
+            'user_id',
+            'profile_effect_id'
         )->withTimestamps();
     }
 

@@ -6,8 +6,11 @@ import { isPendingMessageId } from '../../utils/outboundMessage'
 import { copyPlainText } from '../../utils/copyText'
 import { bubbleTextClass } from '../../themes/utils'
 import { useImageLightbox } from '../../composables/useImageLightbox'
+import { useConfigStore } from '../../stores/config'
 import { useToastStore } from '../../stores/toast'
 import { useChatifyI18n } from '../../composables/useChatifyI18n'
+import { useBreakpoints } from '../../composables/useBreakpoints'
+import { useBubbleGestures } from '../../composables/useBubbleGestures'
 import MessageAlbumBubble from './MessageAlbumBubble.vue'
 import MessageActionsMenu from './MessageActionsMenu.vue'
 import MessageBody from './MessageBody.vue'
@@ -38,16 +41,25 @@ const emit = defineEmits<{
 
 const { show } = useImageLightbox()
 const toastStore = useToastStore()
+const configStore = useConfigStore()
 const { t } = useChatifyI18n()
+const { isMobile } = useBreakpoints()
 const actionsMenuRef = ref<InstanceType<typeof MessageActionsMenu> | null>(null)
+
+const isAdmin = computed(() => (configStore.user?.attributes.role ?? 'node') === 'admin')
 
 const localStatus = computed(() => props.message.attributes.local_status ?? null)
 const isPending = computed(() => isPendingMessageId(props.message.id))
 const showActions = computed(() => !isPending.value && localStatus.value !== 'sending')
 const hasCopyableText = computed(() => Boolean(props.message.attributes.body?.trim()))
-const spacingClass = computed(() =>
-  props.clusterSpacing === 'tight' ? 'chatify:mt-0.5' : 'chatify:mt-2',
-)
+const spacingClass = computed(() => {
+  // Uniform gap for every bubble. The old 'tight' (mt-0.5) vs 'normal' (mt-2) split
+  // alternated with cluster index and the 5-minute gap rule, so consecutive bubbles
+  // sat at visibly different offsets — some pushed out, some pulled in. The prop is
+  // kept so callers do not change, but both values now resolve to the same gap.
+  void props.clusterSpacing
+  return 'chatify:mt-1'
+})
 
 const imageLoaded = ref(false)
 
@@ -100,6 +112,47 @@ function onContextMenu(event: MouseEvent) {
   actionsMenuRef.value?.openAt(event.clientX, event.clientY)
 }
 
+/**
+ * Swipe-to-reply.
+ *
+ * Swipe RIGHT on a bubble → reply to that bubble (works on others' messages, the
+ * common case). Swipe LEFT on your OWN bubble → reply to it. Swiping left on
+ * someone else's bubble, or right on your own, does nothing: the gesture is only
+ * armed for the direction that maps to "reply to this message" for that side, so a
+ * stray drag never fires an action the user did not mean.
+ */
+const canSwipeReply = computed(() => {
+  if (!showActions.value) return false
+  return true
+})
+
+const {
+  isHolding,
+  dragX,
+  swipeDirection,
+  onPointerDown,
+  onPointerMove,
+  onPointerUp,
+  onPointerCancel,
+} = useBubbleGestures({
+  disabled: () => !showActions.value,
+  onLongPress: ({ x, y }) => {
+    actionsMenuRef.value?.openAt(x, y)
+  },
+  onSwipe: (direction) => {
+    // Own bubbles reply on a left drag, others' on a right drag.
+    const wanted = props.isOwn ? 'left' : 'right'
+    if (direction !== wanted) return
+    emit('reply')
+  },
+})
+
+const bubbleTransform = computed(() => {
+  if (dragX.value === 0) return undefined
+  // Damped and capped in the composable; translate only, never resize.
+  return `translateX(${dragX.value}px)`
+})
+
 async function onCopyText() {
   const body = props.message.attributes.body
   if (!body?.trim()) {
@@ -124,15 +177,36 @@ async function onCopyText() {
   >
     <div
       class="chatify:group chatify-message-row chatify:flex chatify:min-w-0 chatify:items-end chatify:gap-1"
-      :class="isOwn ? 'chatify-message-row-outgoing' : ''"
+      :class="[
+        isOwn ? 'chatify-message-row-outgoing' : '',
+        isHolding ? 'chatify-message-holding' : '',
+      ]"
       @contextmenu="onContextMenu"
+      @pointerdown="onPointerDown"
+      @pointermove="onPointerMove"
+      @pointerup="onPointerUp"
+      @pointercancel="onPointerCancel"
     >
+      <!-- Swipe-to-reply affordance: arrow grows in as the bubble is dragged -->
+      <span
+        v-if="swipeDirection"
+        class="chatify-bubble-swipe-hint"
+        :class="isOwn ? 'chatify-bubble-swipe-hint-own' : 'chatify-bubble-swipe-hint-other'"
+        aria-hidden="true"
+      >
+        <svg class="chatify:h-4 chatify:w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a4 4 0 010 8h-3M3 10l4-4M3 10l4 4" />
+        </svg>
+      </span>
+
       <MessageActionsMenu
         v-if="isOwn && showActions"
         ref="actionsMenuRef"
         :is-own="isOwn"
+        :is-admin="isAdmin"
         :has-copyable-text="hasCopyableText"
         :is-saved-conversation="isSavedConversation"
+        :hide-trigger="isMobile"
         @edit="emit('edit')"
         @remove-for-me="emit('removeForMe')"
         @remove-for-all="emit('removeForAll')"
@@ -148,6 +222,7 @@ async function onCopyText() {
           localStatus === 'sending' ? 'chatify-message-pending' : '',
           localStatus === 'failed' ? 'chatify-message-failed' : '',
         ]"
+        :style="{ transform: bubbleTransform }"
       >
         <p
           v-if="showSenderName && senderName"
@@ -276,9 +351,17 @@ async function onCopyText() {
         <MessageBody
           v-if="message.attributes.body"
           :body="message.attributes.body"
-        />
+        ><template #meta><span class="chatify-message-meta chatify-message-meta-inline"><span v-if="message.attributes.edited_at" class="chatify:text-[10px] chatify:italic">{{ $t('ui.thread.bubble.edited') }}</span><span class="chatify:text-[10px]">{{ formatMessageTime(message.attributes.created_at) }}</span><MessageDeliveryStatus
+                v-if="isOwn"
+                :status="localStatus"
+                :read="message.attributes.read"
+                :is-own="isOwn"
+              /></span></template></MessageBody>
 
-        <div class="chatify-message-meta chatify:mt-0.5 chatify:flex chatify:items-center chatify:justify-end chatify:gap-1">
+        <div
+          v-else
+          class="chatify-message-meta chatify-message-meta-standalone chatify:mt-0.5 chatify:flex chatify:items-center chatify:justify-end chatify:gap-1"
+        >
           <span v-if="message.attributes.edited_at" class="chatify:text-[10px] chatify:italic">{{ $t('ui.thread.bubble.edited') }}</span>
           <span class="chatify:text-[10px]">
             {{ formatMessageTime(message.attributes.created_at) }}
@@ -296,8 +379,10 @@ async function onCopyText() {
         v-if="!isOwn && showActions"
         ref="actionsMenuRef"
         :is-own="isOwn"
+        :is-admin="isAdmin"
         :has-copyable-text="hasCopyableText"
         :is-saved-conversation="isSavedConversation"
+        :hide-trigger="isMobile"
         @edit="emit('edit')"
         @remove-for-me="emit('removeForMe')"
         @remove-for-all="emit('removeForAll')"

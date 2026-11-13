@@ -8,6 +8,7 @@ import { useConfigStore } from '../../stores/config'
 import { useChatifyI18n } from '../../composables/useChatifyI18n'
 import { displayUserAvatar, displayUserName } from '../../utils/userDisplay'
 import EmptyState from '../states/EmptyState.vue'
+import UserAvatar from '../ui/UserAvatar.vue'
 
 const contactsStore = useContactsStore()
 const conversationsStore = useConversationsStore()
@@ -90,7 +91,7 @@ async function openFavorite(userId: number | string) {
       {{ $t('ui.sidebar.empty.no_favorites_match') }}
     </p>
 
-    <div v-else class="chatify:flex-1 chatify:overflow-y-auto">
+    <div v-else class="chatify:flex-1 chatify:overflow-y-auto chatify-sidebar-scroll-under-dock">
       <button
         v-for="user in filteredFavorites"
         :key="user.id"
@@ -98,13 +99,13 @@ async function openFavorite(userId: number | string) {
         class="chatify-list-item chatify:flex chatify:w-full chatify:items-center chatify:gap-3 chatify:px-4 chatify:py-3 chatify:text-start"
         @click="openFavorite(user.id)"
       >
-        <div class="chatify:h-10 chatify:w-10 chatify:shrink-0">
-          <img
-            :src="displayUserAvatar(user, configStore.defaultAvatarUrl)"
-            :alt="displayUserName(user)"
-            class="chatify:h-full chatify:w-full chatify:rounded-full chatify:object-cover"
-          />
-        </div>
+        <UserAvatar
+          size="sm"
+          :user="user"
+          :src="displayUserAvatar(user, configStore.defaultAvatarUrl)"
+          :border-url="user.attributes?.avatar_border?.image_url"
+          :alt="displayUserName(user)"
+        />
         <div class="chatify:min-w-0 chatify:flex-1">
           <p class="chatify:truncate chatify:text-sm chatify:font-medium chatify:text-chatify-text">{{ displayUserName(user) }}</p>
         </div>
